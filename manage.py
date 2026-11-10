@@ -94,7 +94,7 @@ def cmd_test(args):
     if args.suite:
         cmd.append(f"tests/test_{args.suite}.py")
     else:
-        cmd.append("tests/")
+        cmd.extend(["tests/", "backend/auth/test_rbac.py"])
 
     if args.verbose:
         cmd.append("-v")

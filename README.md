@@ -1,6 +1,6 @@
 # 🛡️ AI-Powered Cyber Digital Twin for Linux
 
-[![Build & Test Status](https://img.shields.io/badge/tests-70%2F70%20passing-brightgreen.svg)](https://github.com/mjishaan59-cell/CYBER-TWIN)
+[![Build & Test Status](https://img.shields.io/badge/tests-74%2F74%20passing-brightgreen.svg)](https://github.com/mjishaan59-cell/CYBER-TWIN)
 [![Python Version](https://img.shields.io/badge/python-3.10%20%7C%203.11%20%7C%203.12-blue.svg)](https://www.python.org/)
 [![License](https://img.shields.io/badge/license-MIT-purple.svg)](LICENSE)
 [![Docker Support](https://img.shields.io/badge/docker-ready-2496ED.svg)](docker-compose.yml)
@@ -97,7 +97,7 @@ docker compose up -d --build
 # View container status
 docker compose ps
 ```
-- **Web UI & Security Center**: [http://localhost/](http://localhost/)
+- **Web Dashboard & SOC Center**: [http://localhost/](http://localhost/) (Credentials: `admin` / `admin123` or click 1-click Auto-Fill)
 - **FastAPI Documentation & Swagger UI**: [http://localhost:8000/docs](http://localhost:8000/docs)
 - **Health Check Probe**: [http://localhost/health](http://localhost/health)
 
@@ -113,10 +113,12 @@ cd CYBER-TWIN
 # 2. Install dependencies
 pip install -r requirements.txt
 
-# 3. Start backend API server
+# 3. Start backend API & Web Dashboard
 python manage.py run
 ```
-Open your browser to: **[http://localhost:8000/docs](http://localhost:8000/docs)**
+Once started, open your browser to:
+- **Interactive SOC Web Dashboard**: **[http://localhost:8000/](http://localhost:8000/)** (Sign in with `admin` / `admin123` or click "Auto-Fill & Enter Dashboard")
+- **Interactive Swagger REST API Docs**: **[http://localhost:8000/docs](http://localhost:8000/docs)**
 
 ---
 
@@ -176,7 +178,9 @@ curl -X POST http://localhost:8000/fim/scan/production-linux-01
 curl -X GET http://localhost:8000/processes/
 
 # 6. Execute What-If Attack Simulation
-curl -X POST http://localhost:8000/simulation/run/SSH_BRUTE_FORCE
+curl -X POST http://localhost:8000/simulation/run \
+  -H "Content-Type: application/json" \
+  -d '{"scenario_id": "SSH_BRUTE_FORCE", "target_hostname": "localhost"}'
 
 # 7. Execute Incident Response Playbook
 curl -X POST http://localhost:8000/incident-response/playbooks/run \
@@ -244,16 +248,18 @@ VIRUSTOTAL_API_KEY=
 
 ---
 
-## 🧪 Comprehensive Verification Suite (70/70 Passing)
+## 🧪 Comprehensive Verification Suite (74/74 Passing)
 
 Run the full automated test suite anytime:
 
 ```bash
-python -m pytest tests/
+python manage.py test
+# or: pytest
 ```
 
 | Phase | Subsystem | Test Suite | Tests Passed | Status |
 | :--- | :--- | :--- | :--- | :--- |
+| **Auth & RBAC** | Role-Based Access Control & Granular Permissions | `backend/auth/test_rbac.py` | 4 / 4 | ✅ Passed |
 | **Phase 21.6** | Core Polish, CSS Sanitization, JWT Fallback | `test_phase21_6.py` | 6 / 6 | ✅ Passed |
 | **Phase 22** | AI Threat Intelligence & MITRE Correlation | `test_phase22_threat_intel.py` | 8 / 8 | ✅ Passed |
 | **Phase 23** | Predictive Analytics & ML Resource Drift Engine | `test_phase23_predictive_analytics.py` | 6 / 6 | ✅ Passed |
@@ -267,7 +273,7 @@ python -m pytest tests/
 | **Phase 31–32**| Docker, Cloud Architecture, Nginx & Disaster Recovery | `test_phase31_32_deployment.py` | 5 / 5 | ✅ Passed |
 | **CLI & Research**| Management CLI, One-Click Starters & Research Suite | `test_cli_and_experiments.py` | 4 / 4 | ✅ Passed |
 | **Web Gateway**| Web Browser Dashboard Delivery & Prefixed Routing | `test_browser_and_web_serving.py` | 5 / 5 | ✅ Passed |
-| **TOTAL** | **Full Cyber Digital Twin Linux Platform** | **All 13 Suites** | **70 / 70** | **✅ 100% Passed** |
+| **TOTAL** | **Full Cyber Digital Twin Linux Platform** | **All 14 Suites** | **74 / 74** | **✅ 100% Passed** |
 
 ---
 
