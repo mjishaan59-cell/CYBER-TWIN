@@ -96,6 +96,10 @@ from backend.api.fim_routes import (
     router as fim_router
 )
 
+from backend.api.process_routes import (
+    router as process_router
+)
+
 from backend.auth.dependencies import (
     get_current_user,
     require_roles
@@ -222,6 +226,10 @@ app.include_router(
 
 app.include_router(
     fim_router
+)
+
+app.include_router(
+    process_router
 )
 
 # ============================================================

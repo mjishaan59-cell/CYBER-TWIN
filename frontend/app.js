@@ -711,6 +711,8 @@ if (
 
     loadFimData();
 
+    loadProcessData();
+
     startAutoRefresh();
 
 
@@ -874,6 +876,13 @@ function startAutoRefresh() {
     refreshIntervals.push(
         setInterval(
             loadFimData,
+            10000
+        )
+    );
+
+    refreshIntervals.push(
+        setInterval(
+            loadProcessData,
             10000
         )
     );
@@ -4916,4 +4925,146 @@ async function triggerFimScan() {
     } catch (err) {
         alert(`Error triggering scan: ${err.message}`);
     }
+}
+
+// ============================================================
+// PHASE 25 - PROCESS AND SERVICE MONITORING
+// ============================================================
+
+async function loadProcessData() {
+    try {
+        // 1. Fetch Stats
+        const statsRes = await apiFetch("/processes/stats?hostname=prac-server");
+        if (statsRes && statsRes.ok) {
+            const stats = await statsRes.json();
+            const totalEl = document.getElementById("procTotalCount");
+            const highResEl = document.getElementById("procHighResCount");
+            const suspEl = document.getElementById("procSuspiciousCount");
+            const failedServEl = document.getElementById("serviceFailedCount");
+
+            if (totalEl) totalEl.textContent = stats.running_processes_count ?? 0;
+            if (highResEl) highResEl.textContent = stats.high_cpu_processes_count ?? 0;
+            if (suspEl) suspEl.textContent = stats.suspicious_processes_count ?? 0;
+            if (failedServEl) failedServEl.textContent = stats.failed_services_count ?? 0;
+        }
+
+        // 2. Fetch Top Processes
+        const procRes = await apiFetch("/processes?hostname=prac-server&limit=15");
+        const procTable = document.getElementById("topProcessesTable");
+        if (procRes && procRes.ok && procTable) {
+            const procs = await procRes.json();
+            procTable.innerHTML = "";
+            if (!procs || procs.length === 0) {
+                procTable.innerHTML = `<tr><td colspan="8" style="text-align: center; color: #64748b;">No active processes recorded.</td></tr>`;
+            } else {
+                procs.forEach(p => {
+                    const tr = document.createElement("tr");
+                    const isSuspicious = p.is_suspicious;
+                    const threatCat = p.threat_category || "BENIGN";
+                    const isThreat = threatCat !== "BENIGN";
+
+                    const badge = isThreat 
+                        ? `<span style="background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; padding: 2px 6px; border-radius: 4px; font-weight: bold; font-size: 11px;">${escapeHtml(threatCat)}</span>`
+                        : `<span style="color: #16a34a; font-size: 12px;">✓ Normal</span>`;
+
+                    tr.innerHTML = `
+                        <td style="font-family: monospace; font-weight: bold;">${p.pid}</td>
+                        <td>${escapeHtml(p.username || "-")}</td>
+                        <td style="font-family: monospace; font-weight: 500;">${escapeHtml(p.process_name || p.name || "-")}</td>
+                        <td><strong>${p.cpu_percent ? p.cpu_percent.toFixed(1) : 0.0}%</strong></td>
+                        <td>${p.memory_percent ? p.memory_percent.toFixed(1) : 0.0}%</td>
+                        <td><span style="font-size: 12px; color: #475569;">${escapeHtml(p.status || "R")}</span></td>
+                        <td><span style="font-weight: bold; color: ${isThreat ? '#dc2626' : '#16a34a'};">${isThreat ? 'HIGH' : 'LOW'}</span></td>
+                        <td>${badge}</td>
+                    `;
+                    procTable.appendChild(tr);
+                });
+            }
+        }
+
+        // 3. Fetch Alerts
+        const alertRes = await apiFetch("/processes/alerts?hostname=prac-server&limit=10");
+        const alertTable = document.getElementById("procAlertsTable");
+        if (alertRes && alertRes.ok && alertTable) {
+            const alerts = await alertRes.json();
+            alertTable.innerHTML = "";
+            if (!alerts || alerts.length === 0) {
+                alertTable.innerHTML = `<tr><td colspan="7" style="text-align: center; color: #16a34a; font-weight: 500;">✓ No active process security anomalies detected.</td></tr>`;
+            } else {
+                alerts.forEach(al => {
+                    const tr = document.createElement("tr");
+                    const sevColor = al.severity === "CRITICAL" ? "#dc2626" :
+                                     al.severity === "HIGH" ? "#ea580c" :
+                                     al.severity === "MEDIUM" ? "#d97706" : "#16a34a";
+                    const timeStr = al.created_at ? new Date(al.created_at).toLocaleTimeString() : "-";
+
+                    tr.innerHTML = `
+                        <td style="font-size: 12px; color: #64748b;">${escapeHtml(timeStr)}</td>
+                        <td>${escapeHtml(al.hostname || "prac-server")}</td>
+                        <td style="font-weight: 500;">${escapeHtml(al.alert_type)}</td>
+                        <td style="font-family: monospace; font-weight: bold;">${escapeHtml(al.process_name || "-")} (PID: ${al.pid || "-"})</td>
+                        <td><span style="color: white; background: ${sevColor}; padding: 2px 7px; border-radius: 4px; font-size: 11px; font-weight: bold;">${escapeHtml(al.severity)}</span></td>
+                        <td><span style="font-family: monospace; font-size: 11px; background: #f1f5f9; padding: 2px 5px; border-radius: 3px;">T1059</span></td>
+                        <td style="font-size: 12px; color: #334155;">${escapeHtml(al.details || al.description || "-")}</td>
+                    `;
+                    alertTable.appendChild(tr);
+                });
+            }
+        }
+
+        // 4. Fetch Systemd Services
+        const servRes = await apiFetch("/processes/services?hostname=prac-server");
+        const servTable = document.getElementById("systemdServicesTable");
+        if (servRes && servRes.ok && servTable) {
+            const servs = await servRes.json();
+            servTable.innerHTML = "";
+            if (!servs || servs.length === 0) {
+                servTable.innerHTML = `<tr><td colspan="7" style="text-align: center; color: #64748b;">No systemd services tracked.</td></tr>`;
+            } else {
+                servs.forEach(s => {
+                    const tr = document.createElement("tr");
+                    const isFailed = s.is_failed || s.active_state === "failed" || s.sub_state === "failed";
+                    const statusColor = isFailed ? "#dc2626" :
+                                        s.active_state === "active" ? "#16a34a" : "#64748b";
+
+                    tr.innerHTML = `
+                        <td>${escapeHtml(s.hostname || "prac-server")}</td>
+                        <td style="font-family: monospace; font-weight: bold;">${escapeHtml(s.service_name || s.unit_name)}</td>
+                        <td>${escapeHtml(s.load_state || "loaded")}</td>
+                        <td><span style="color: ${statusColor}; font-weight: bold;">${escapeHtml(s.active_state)}</span></td>
+                        <td><span style="font-size: 12px;">${escapeHtml(s.sub_state || "-")}</span></td>
+                        <td><span style="color: #2563eb; font-weight: bold;">YES</span></td>
+                        <td><span style="color: ${statusColor}; font-weight: 500;">${isFailed ? '⚠ ATTENTION REQUIRED' : '✓ Normal'}</span></td>
+                    `;
+                    servTable.appendChild(tr);
+                });
+            }
+        }
+
+    } catch (err) {
+        console.error("Error loading process monitoring data:", err);
+    }
+}
+
+async function triggerProcessScan() {
+    try {
+        const res = await apiFetch("/processes/scan", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ hostname: "prac-server" })
+        });
+        if (res && res.ok) {
+            const data = await res.json();
+            alert(`Process scan complete. Scanned ${data.total_processes} processes. Suspicious: ${data.suspicious_count}, New alerts: ${data.new_alerts_emitted}`);
+            loadProcessData();
+        } else {
+            alert("Scan failed. Verify analyst or admin privileges.");
+        }
+    } catch (err) {
+        alert(`Error triggering process scan: ${err.message}`);
+    }
+}
+
+async function triggerServiceScan() {
+    await triggerProcessScan();
 }

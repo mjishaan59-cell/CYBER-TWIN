@@ -1309,6 +1309,113 @@
     </section>
 
     <!-- =====================================================
+         PHASE 25 - PROCESS AND SERVICE MONITORING
+    ====================================================== -->
+
+    <section class="card" id="processMonitoringSection">
+
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+            <h2 style="margin: 0;">Process & Service Monitoring</h2>
+            <div style="display: flex; gap: 10px;">
+                <button type="button" onclick="triggerProcessScan()" style="padding: 7px 15px; background: #0077cc; color: white; border: none; border-radius: 6px; font-weight: bold; cursor: pointer;">Scan Processes</button>
+                <button type="button" onclick="triggerServiceScan()" style="padding: 7px 15px; background: #0891b2; color: white; border: none; border-radius: 6px; font-weight: bold; cursor: pointer;">Scan Systemd</button>
+                <button type="button" onclick="loadProcessData()" style="padding: 7px 15px; background: #475569; color: white; border: none; border-radius: 6px; font-weight: bold; cursor: pointer;">Refresh</button>
+            </div>
+        </div>
+
+        <!-- Process & Service Summary Metrics -->
+        <div class="security-summary">
+            <div>
+                <span>Total Processes</span>
+                <strong id="procTotalCount">-</strong>
+            </div>
+            <div>
+                <span>Resource Hogs</span>
+                <strong id="procHighResCount">-</strong>
+            </div>
+            <div>
+                <span>Suspicious Processes</span>
+                <strong id="procSuspiciousCount" style="color: #dc2626;">-</strong>
+            </div>
+            <div>
+                <span>Failed Systemd Units</span>
+                <strong id="serviceFailedCount" style="color: #ea580c;">-</strong>
+            </div>
+        </div>
+
+        <!-- Suspicious Process & Service Alerts Table -->
+        <div class="table-container" style="margin-top: 15px;" id="processAlertsContainer">
+            <h3 style="color: #dc2626;">Process Security Alerts & Anomalies</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Timestamp</th>
+                        <th>Host</th>
+                        <th>Alert Type</th>
+                        <th>Process / Service</th>
+                        <th>Severity</th>
+                        <th>Mitre Technique</th>
+                        <th>Description</th>
+                    </tr>
+                </thead>
+                <tbody id="procAlertsTable">
+                    <tr>
+                        <td colspan="7">Loading process security alerts...</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Top Active Processes Table -->
+        <div class="table-container" style="margin-top: 20px;">
+            <h3>Active Processes (Top By Resource Consumption)</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>PID</th>
+                        <th>User</th>
+                        <th>Process Name</th>
+                        <th>CPU %</th>
+                        <th>Memory %</th>
+                        <th>Status</th>
+                        <th>Risk Score</th>
+                        <th>Security Assessment</th>
+                    </tr>
+                </thead>
+                <tbody id="topProcessesTable">
+                    <tr>
+                        <td colspan="8">Loading active processes...</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Systemd Services Table -->
+        <div class="table-container" style="margin-top: 20px;">
+            <h3>Critical Systemd Services</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Host</th>
+                        <th>Unit Name</th>
+                        <th>Load State</th>
+                        <th>Active State</th>
+                        <th>Sub State</th>
+                        <th>Critical</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody id="systemdServicesTable">
+                    <tr>
+                        <td colspan="7">Loading systemd services...</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+    </section>
+
+    <!-- =====================================================
          JAVASCRIPT
     ====================================================== -->
 
