@@ -225,6 +225,55 @@
 
 
     <!-- =====================================================
+         PHASE 23 - PREDICTIVE RESOURCE ANALYTICS & FORECASTING
+    ====================================================== -->
+
+    <section class="card" id="predictiveAnalyticsSection">
+
+        <h2>Machine Learning Predictive Analytics & Resource Forecasting</h2>
+
+        <!-- Forecasting Summary Grid -->
+        <div class="security-summary" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));">
+            <div>
+                <span>CPU Projected (+15m)</span>
+                <strong id="predCpuVal">-</strong>
+                <small id="predCpuTrend" style="display: block; font-size: 11px; color: #64748b; margin-top: 4px;">Trend: -</small>
+            </div>
+            <div>
+                <span>Memory Projected (+1h)</span>
+                <strong id="predMemVal">-</strong>
+                <small id="predMemTrend" style="display: block; font-size: 11px; color: #64748b; margin-top: 4px;">Rate: -</small>
+            </div>
+            <div>
+                <span>Disk Exhaustion (95%)</span>
+                <strong id="predDiskExhaustion">-</strong>
+                <small id="predDiskStatus" style="display: block; font-size: 11px; color: #16a34a; margin-top: 4px;">Capacity: Stable</small>
+            </div>
+            <div>
+                <span>Anomaly Likelihood</span>
+                <strong id="predAnomalyProb">-</strong>
+                <small id="predAnomalyStatus" style="display: block; font-size: 11px; color: #64748b; margin-top: 4px;">Status: -</small>
+            </div>
+        </div>
+
+        <!-- Predictive Proactive Alerts Banner -->
+        <div id="predictiveAlertsBanner" style="margin-top: 15px; display: none; padding: 12px; border-radius: 6px; background: #fffbeb; border: 1px solid #fef3c7;">
+            <!-- Injected via JavaScript -->
+        </div>
+
+        <!-- Predictive Horizon Chart -->
+        <div class="chart-container" style="margin-top: 20px; box-shadow: none; padding: 0;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                <h3 style="margin: 0; font-size: 16px;">1-Hour Forward Telemetry Projection</h3>
+                <span id="forecastConfidenceBadge" style="font-size: 12px; background: #e0f2fe; color: #0369a1; padding: 3px 8px; border-radius: 4px; font-weight: bold;">ML Confidence: 92%</span>
+            </div>
+            <canvas id="predictiveForecastChart" style="max-height: 250px;"></canvas>
+        </div>
+
+    </section>
+
+
+    <!-- =====================================================
          SSH SECURITY EVENTS
     ====================================================== -->
 

@@ -707,6 +707,8 @@ if (
 
     loadMitreCoverage();
 
+    loadPredictiveAnalytics();
+
     startAutoRefresh();
 
 
@@ -856,6 +858,13 @@ function startAutoRefresh() {
     refreshIntervals.push(
         setInterval(
             loadThreatIntelligence,
+            10000
+        )
+    );
+
+    refreshIntervals.push(
+        setInterval(
+            loadPredictiveAnalytics,
             10000
         )
     );
@@ -4614,4 +4623,182 @@ function escapeHtml(str) {
         .replace(/>/g, "&gt;")
         .replace(/"/g, "&quot;")
         .replace(/'/g, "&#039;");
+}
+
+// ============================================================
+// PHASE 23: PREDICTIVE RESOURCE ANALYTICS DASHBOARD
+// ============================================================
+
+let predictiveForecastChartInstance = null;
+
+async function loadPredictiveAnalytics() {
+    try {
+        const res = await apiFetch("/predictive-analytics/forecast?hostname=prac-server");
+        if (!res || !res.ok) return;
+
+        const data = await res.json();
+        const cpu = data.cpu || {};
+        const mem = data.memory || {};
+        const disk = data.disk || {};
+        const anomaly = data.anomaly_trend || {};
+        const alerts = data.predictive_alerts || [];
+
+        // 1. KPI Cards
+        const cpuValEl = document.getElementById("predCpuVal");
+        const cpuTrendEl = document.getElementById("predCpuTrend");
+        if (cpuValEl) {
+            cpuValEl.textContent = `${cpu.predicted_15m ?? 0}%`;
+            const trendArrow = cpu.trend_direction === "RISING" ? "↑ Rising" :
+                               cpu.trend_direction === "FALLING" ? "↓ Falling" : "→ Stable";
+            const trendColor = cpu.trend_direction === "RISING" ? "#ea580c" : "#16a34a";
+            cpuTrendEl.innerHTML = `<span style="color: ${trendColor}; font-weight: bold;">${trendArrow}</span> (${cpu.rate_per_hour >= 0 ? '+' : ''}${cpu.rate_per_hour}%/h)`;
+        }
+
+        const memValEl = document.getElementById("predMemVal");
+        const memTrendEl = document.getElementById("predMemTrend");
+        if (memValEl) {
+            memValEl.textContent = `${mem.predicted_1h ?? 0}%`;
+            memTrendEl.textContent = `Rate: ${mem.rate_per_hour >= 0 ? '+' : ''}${mem.rate_per_hour}%/h (Conf: ${mem.confidence_pct ?? 0}%)`;
+        }
+
+        const diskExEl = document.getElementById("predDiskExhaustion");
+        const diskStatusEl = document.getElementById("predDiskStatus");
+        if (diskExEl) {
+            if (disk.time_to_exhaustion_hours) {
+                diskExEl.textContent = `${disk.time_to_exhaustion_hours} hrs`;
+                diskStatusEl.textContent = "Urgent: Nearing 95% threshold";
+                diskStatusEl.style.color = "#dc2626";
+            } else {
+                diskExEl.textContent = "> 30 days";
+                diskStatusEl.textContent = `Stable (+${disk.rate_per_hour}%/h)`;
+                diskStatusEl.style.color = "#16a34a";
+            }
+        }
+
+        const anomProbEl = document.getElementById("predAnomalyProb");
+        const anomStatusEl = document.getElementById("predAnomalyStatus");
+        if (anomProbEl) {
+            anomProbEl.textContent = `${anomaly.probability_pct ?? 0}%`;
+            const anomColor = anomaly.probability_pct >= 75 ? "#dc2626" :
+                              anomaly.probability_pct >= 45 ? "#ea580c" : "#16a34a";
+            anomProbEl.style.color = anomColor;
+            anomStatusEl.textContent = anomaly.status || "NOMINAL";
+        }
+
+        // 2. Predictive Alerts Banner
+        const alertsBanner = document.getElementById("predictiveAlertsBanner");
+        if (alertsBanner) {
+            if (alerts.length > 0) {
+                alertsBanner.style.display = "block";
+                alertsBanner.innerHTML = `
+                    <div style="font-weight: bold; color: #b45309; margin-bottom: 5px;">⚡ Proactive Capacity & Performance Warnings (${alerts.length})</div>
+                    ${alerts.map(a => `
+                        <div style="margin-top: 4px; font-size: 13px; color: #78350f;">
+                            <strong>[${escapeHtml(a.severity)}] ${escapeHtml(a.alert_type)}:</strong> ${escapeHtml(a.recommendation)} 
+                            <small><em>(Horizon: ${a.time_horizon_minutes}m, Conf: ${a.confidence_pct}%)</em></small>
+                        </div>
+                    `).join('')}
+                `;
+            } else {
+                alertsBanner.style.display = "none";
+            }
+        }
+
+        // 3. Confidence Badge
+        const confBadge = document.getElementById("forecastConfidenceBadge");
+        if (confBadge && cpu.confidence_pct) {
+            confBadge.textContent = `ML Confidence: ${cpu.confidence_pct}% (${cpu.model_type})`;
+        }
+
+        // 4. Render Forecast Chart
+        renderPredictiveChart(cpu, mem);
+
+    } catch (err) {
+        console.error("Error loading predictive analytics:", err);
+    }
+}
+
+function renderPredictiveChart(cpuForecast, memForecast) {
+    const canvas = document.getElementById("predictiveForecastChart");
+    if (!canvas || typeof Chart === "undefined") return;
+
+    const ctx = canvas.getContext("2d");
+    const labels = ["Now", "+5m", "+10m", "+15m", "+20m", "+25m", "+30m", "+35m", "+40m", "+45m", "+50m", "+55m", "+60m"];
+
+    const cpuPoints = [cpuForecast.current_value, ...(cpuForecast.predictions_series || [])].slice(0, 13);
+    const memPoints = [memForecast.current_value, ...(memForecast.predictions_series || [])].slice(0, 13);
+    const cpuUpper = [cpuForecast.current_value, ...(cpuForecast.upper_bounds || [])].slice(0, 13);
+    const cpuLower = [cpuForecast.current_value, ...(cpuForecast.lower_bounds || [])].slice(0, 13);
+
+    if (predictiveForecastChartInstance) {
+        predictiveForecastChartInstance.data.labels = labels;
+        predictiveForecastChartInstance.data.datasets[0].data = cpuPoints;
+        predictiveForecastChartInstance.data.datasets[1].data = memPoints;
+        predictiveForecastChartInstance.data.datasets[2].data = cpuUpper;
+        predictiveForecastChartInstance.data.datasets[3].data = cpuLower;
+        predictiveForecastChartInstance.update();
+        return;
+    }
+
+    predictiveForecastChartInstance = new Chart(ctx, {
+        type: "line",
+        data: {
+            labels: labels,
+            datasets: [
+                {
+                    label: "CPU Usage Projected (%)",
+                    data: cpuPoints,
+                    borderColor: "#ef4444",
+                    backgroundColor: "rgba(239, 68, 68, 0.1)",
+                    borderWidth: 2,
+                    borderDash: [5, 5],
+                    fill: false,
+                    tension: 0.3
+                },
+                {
+                    label: "Memory Usage Projected (%)",
+                    data: memPoints,
+                    borderColor: "#3b82f6",
+                    backgroundColor: "rgba(59, 130, 246, 0.1)",
+                    borderWidth: 2,
+                    borderDash: [5, 5],
+                    fill: false,
+                    tension: 0.3
+                },
+                {
+                    label: "CPU Upper Confidence Bound (95%)",
+                    data: cpuUpper,
+                    borderColor: "rgba(239, 68, 68, 0.25)",
+                    borderWidth: 1,
+                    pointRadius: 0,
+                    fill: false
+                },
+                {
+                    label: "CPU Lower Confidence Bound (95%)",
+                    data: cpuLower,
+                    borderColor: "rgba(239, 68, 68, 0.25)",
+                    borderWidth: 1,
+                    pointRadius: 0,
+                    fill: false
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    min: 0,
+                    max: 100,
+                    title: { display: true, text: "Utilization (%)" }
+                },
+                x: {
+                    title: { display: true, text: "Forecast Horizon" }
+                }
+            },
+            plugins: {
+                legend: { position: "top" }
+            }
+        }
+    });
 }
