@@ -1,0 +1,128 @@
+{
+  "experiment_title": "AI-Powered Cyber Digital Twin Empirical Performance & Security Evaluation",
+  "generated_at": "2026-11-10T12:52:42.299435+00:00",
+  "adversary_simulation_metrics": {
+    "SSH_BRUTE_FORCE": {
+      "name": "Distributed SSH Credential Stuffing & Brute Force",
+      "mitre_tactic": "Credential Access",
+      "mitre_technique": "T1110.001",
+      "severity": "HIGH",
+      "avg_mttd_seconds": 15,
+      "avg_mttr_seconds": 120,
+      "unmitigated_mttr_baseline_seconds": 1800.0,
+      "mttr_reduction_pct": 93.33,
+      "avg_risk_score": 75,
+      "steps_count": 4,
+      "recommendations_count": 3
+    },
+    "REVERSE_SHELL_INJECTION": {
+      "name": "Remote Command Injection & Reverse Shell",
+      "mitre_tactic": "Execution / C2",
+      "mitre_technique": "T1059.004",
+      "severity": "CRITICAL",
+      "avg_mttd_seconds": 8,
+      "avg_mttr_seconds": 60,
+      "unmitigated_mttr_baseline_seconds": 1800.0,
+      "mttr_reduction_pct": 96.67,
+      "avg_risk_score": 95,
+      "steps_count": 4,
+      "recommendations_count": 3
+    },
+    "PRIVILEGE_ESCALATION_SUID": {
+      "name": "SUID Binary Abuse & Sudoers Tampering",
+      "mitre_tactic": "Privilege Escalation",
+      "mitre_technique": "T1548.001",
+      "severity": "CRITICAL",
+      "avg_mttd_seconds": 8,
+      "avg_mttr_seconds": 60,
+      "unmitigated_mttr_baseline_seconds": 1800.0,
+      "mttr_reduction_pct": 96.67,
+      "avg_risk_score": 90,
+      "steps_count": 4,
+      "recommendations_count": 3
+    },
+    "DATA_EXFILTRATION_DNS": {
+      "name": "Covert Data Exfiltration via DNS Tunneling",
+      "mitre_tactic": "Exfiltration",
+      "mitre_technique": "T1048.003",
+      "severity": "HIGH",
+      "avg_mttd_seconds": 15,
+      "avg_mttr_seconds": 120,
+      "unmitigated_mttr_baseline_seconds": 1800.0,
+      "mttr_reduction_pct": 93.33,
+      "avg_risk_score": 80,
+      "steps_count": 4,
+      "recommendations_count": 3
+    },
+    "RANSOMWARE_BURST": {
+      "name": "Rapid Multi-File Encryption Wave (Ransomware Burst)",
+      "mitre_tactic": "Impact",
+      "mitre_technique": "T1486",
+      "severity": "CRITICAL",
+      "avg_mttd_seconds": 8,
+      "avg_mttr_seconds": 60,
+      "unmitigated_mttr_baseline_seconds": 1800.0,
+      "mttr_reduction_pct": 96.67,
+      "avg_risk_score": 98,
+      "steps_count": 4,
+      "recommendations_count": 3
+    },
+    "RESOURCE_DOS_ATTACK": {
+      "name": "Resource Exhaustion & Denial of Service",
+      "mitre_tactic": "Impact",
+      "mitre_technique": "T1499.001",
+      "severity": "MEDIUM",
+      "avg_mttd_seconds": 30,
+      "avg_mttr_seconds": 180,
+      "unmitigated_mttr_baseline_seconds": 1800.0,
+      "mttr_reduction_pct": 90.0,
+      "avg_risk_score": 65,
+      "steps_count": 4,
+      "recommendations_count": 3
+    }
+  },
+  "predictive_ml_telemetry_metrics": {
+    "Nominal Steady State": {
+      "initial_value": 35.0,
+      "final_value": 33.84,
+      "predicted_1h": 30.57,
+      "rate_per_hour": -2.02,
+      "r2_goodness_of_fit": 0.652,
+      "rmse": 1.064,
+      "trend_direction": "FALLING",
+      "confidence_pct": 99.0,
+      "time_to_exhaustion_hours": null
+    },
+    "Rapid Resource Surge (Exhaustion)": {
+      "initial_value": 20.0,
+      "final_value": 92.5,
+      "predicted_1h": 100.0,
+      "rate_per_hour": 29.99,
+      "r2_goodness_of_fit": 1.0,
+      "rmse": 0.01,
+      "trend_direction": "RISING",
+      "confidence_pct": 99.0,
+      "time_to_exhaustion_hours": 0.1
+    },
+    "Volatile High Variance Drift": {
+      "initial_value": 45.0,
+      "final_value": 69.0,
+      "predicted_1h": 61.24,
+      "rate_per_hour": 1.92,
+      "r2_goodness_of_fit": 0.027,
+      "rmse": 8.371,
+      "trend_direction": "RISING",
+      "confidence_pct": 82.7,
+      "time_to_exhaustion_hours": 13.5
+    }
+  },
+  "performance_and_caching_metrics": {
+    "operations_evaluated": 1000,
+    "uncached_duration_seconds": 0.00267,
+    "cached_duration_seconds": 0.00077,
+    "uncached_ops_per_sec": 374111.49,
+    "cached_ops_per_sec": 1304461.26,
+    "throughput_speedup_factor": 3.49,
+    "cache_hit_rate_pct": 100.0
+  }
+}
