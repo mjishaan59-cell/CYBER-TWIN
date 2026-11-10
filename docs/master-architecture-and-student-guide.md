@@ -241,11 +241,16 @@ docker compose up -d --build
 
 ---
 
-### Step 2: Open the Web Dashboard
-Open your web browser to: **[http://localhost:8000/](http://localhost:8000/)**
+### Step 2: Open the Web Dashboard & Login
+Open your web browser (Chrome, Edge, Firefox, Brave) to: **[http://localhost:8000/](http://localhost:8000/)**  
+*(Or **[http://localhost/](http://localhost/)** if running via Docker Compose)*
 
-Click the green **"Auto-Fill & Enter Dashboard"** button on the login screen.  
-*(Default Credentials: Username: `admin` | Password: `admin123`)*
+#### Where to Find the Login Screen & How to Enter:
+- When the page loads, you will see the **CYBER TWIN SECURITY GATEWAY** dialog.
+- You can simply click the neon green button: **"Auto-Fill & Enter Dashboard"** for instant 1-click access.
+- Or type the credentials manually:
+  - **Username**: `admin`
+  - **Password**: `admin123`
 
 ---
 
@@ -257,12 +262,69 @@ Click the green **"Auto-Fill & Enter Dashboard"** button on the login screen.
 | **Run Real Hardware ML Forecast** | `python manage.py forecast` | Outputs Ridge regression slope, $R^2$ fit, and time-to-exhaustion. |
 | **Run Cryptographic FIM Audit** | `python manage.py fim-check` | Verifies SHA-256 + HMAC seals across system configuration baselines. |
 | **Run Cyber Attack Simulation** | `python manage.py simulate SSH_BRUTE_FORCE` | Emulates adversary attack and calculates MTTD, MTTR, and playbook actions. |
-| **Run Full 70-Test Verification**| `python manage.py test` | Runs all 13 automated test suites across all phases. |
+| **Run Full 74-Test Verification**| `python manage.py test` | Runs all 14 automated test suites across all phases (74/74 passing). |
 | **Generate Research Experiments** | `python manage.py experiment` | Generates empirical scientific tables for research papers. |
 
 ---
 
-## 7. Mathematical & Algorithmic Foundations
+## 7. Master Credentials, Passwords, Roles & Access Places Directory
+
+This section provides an exhaustive reference of all usernames, passwords, access privileges, network URLs, ports, and file paths across the platform.
+
+### A. User Accounts & Default Passwords
+
+| Role Name | Username | Default Password | Access Level & Permissions | Where to Use |
+| :--- | :--- | :--- | :--- | :--- |
+| **System Administrator** | `admin` | `admin123` *(or `admin`)* | **Full Superuser Access**: Trigger attack simulations, execute automated incident containment playbooks, run cryptographic FIM audits, register fleet servers, view live hardware metrics. | Web Dashboard (`http://localhost:8000/`) or REST API (`/auth/login`) |
+| **Security Analyst** | `analyst` | `analyst123` *(or `analyst`)* | **Operations Access**: View real-time hardware telemetry, examine threat intelligence indicators, launch synthetic adversary exercises, run dry-run playbooks. | Web Dashboard (`http://localhost:8000/`) or REST API (`/auth/login`) |
+| **Read-Only Auditor** | `viewer` | `viewer123` *(or `viewer`)* | **Read-Only Access**: View dashboard graphs, system health status, historical telemetry, and compliance reports. (Blocked from running playbooks or attack simulations). | Web Dashboard (`http://localhost:8000/`) or REST API (`/auth/login`) |
+
+> 💡 **Quick Access Shortcut**: On the Web Dashboard login modal, click the **"Auto-Fill & Enter Dashboard"** button to instantly authenticate with administrative privileges without manual typing.
+
+### B. Access Places Directory (Web URLs, Ports & Network Endpoints)
+
+| Access Place / Component | Network URL / Address | Port | Protocol | Purpose / Description |
+| :--- | :--- | :--- | :--- | :--- |
+| **Interactive SOC Dashboard** | `http://localhost:8000/` | `8000` | HTTP | Main graphical user interface with dark-mode telemetry charts, threat tables, simulation lab, and playbooks. |
+| **Docker Web Dashboard** | `http://localhost/` | `80` | HTTP | Reverse-proxied production UI served through high-performance Nginx web server. |
+| **Interactive Swagger API Docs** | `http://localhost:8000/docs` | `8000` | HTTP / OpenAPI | Interactive REST API explorer where you can test every endpoint directly in your browser. |
+| **ReDoc API Documentation** | `http://localhost:8000/redoc` | `8000` | HTTP | Clean, book-style technical reference of all API data contracts and schemas. |
+| **System Health & Uptime Probe**| `http://localhost:8000/health` | `8000` | HTTP (JSON) | Health check endpoint returning status (`HEALTHY`), current uptime, and node hostname. |
+| **Live Telemetry Stream** | `http://localhost:8000/metrics` | `8000` | HTTP (JSON) | Real-time genuine local CPU %, Memory %, Disk %, and open socket statistics. |
+| **Historical Metrics Time-Series**| `http://localhost:8000/metrics/history` | `8000` | HTTP (JSON) | Historical hardware resource series used by Ridge regression models. |
+| **Threat Intelligence Feed** | `http://localhost:8000/threat-intel/indicators` | `8000` | HTTP (JSON) | Global dictionary of known malicious IP/domain/hash indicators and MITRE tactics. |
+| **Attack Simulation Catalog** | `http://localhost:8000/simulation/scenarios` | `8000` | HTTP (JSON) | List of 6 safe adversary emulation templates available to run. |
+| **Automated Playbook Catalog** | `http://localhost:8000/incident-response/playbooks` | `8000` | HTTP (JSON) | 6 automated containment playbooks (IP block, process kill, port isolate, file restore). |
+
+### C. Database & Infrastructure Credentials & Places
+
+| Component | Host / Network Place | Port | Username | Password | Database Name | Purpose |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| **PostgreSQL 16** | `localhost` *(or `db` in Docker)* | `5432` | `postgres` | `postgres123` | `cyber_digital_twin` | Persistent relational storage for telemetry time-series, incident evidence, and audit logs. |
+| **In-Memory Cache** | Sub-process memory | N/A | N/A | N/A | N/A | Ultra-fast thread-safe `TTLCache` (1.3M+ QPS) with automatic fallback if PostgreSQL is offline. |
+| **JWT Token Signing** | Internal API Engine | N/A | N/A | `cyber-digital-twin-secure-secret-key-min32chars` | N/A | HS256 HMAC cryptographic key used to sign and verify session tokens. |
+| **Remote SSH Agent** | `192.168.1.100` *(configurable)* | `22` | `root` | `your_remote_password` | N/A | Optional remote Linux server connection for multi-server fleet telemetry. |
+
+### D. File & Codebase Places ("Where Everything Lives on Disk")
+
+| File / Folder Path | What Is Stored Here |
+| :--- | :--- |
+| `frontend/index.html` | The single-page SOC dashboard containing all tabs, cards, charts, and modal dialogs. |
+| `frontend/style.css` | Enterprise dark-mode cyber defense styling, CSS grid layout, and responsive styles. |
+| `frontend/app.js` | Client-side application logic, live metric polling, Chart.js graphs, and API callers. |
+| `manage.py` | Unified operator CLI tool (`run`, `test`, `simulate`, `forecast`, `fim-check`, `experiment`). |
+| `start.bat` | One-click Windows desktop launcher (double-click to run). |
+| `start.sh` | One-click Linux and macOS bash launcher script. |
+| `backend/api/main.py` | FastAPI application entry point, ASGI router, path rewrites, and CORS middlewares. |
+| `backend/auth/routes.py` | User authentication, password verification, seed credentials, and JWT generation. |
+| `backend/simulation/` | Safe What-If synthetic attack simulation engine and adversary scenario definitions. |
+| `backend/incident_response/`| Autonomous containment playbooks, dry-run safety gates, and tamper-evident audit logs. |
+| `tests/` | Comprehensive automated test suite containing all 74 unit, integration, and security tests. |
+| `docs/` | Complete architectural, deployment, and academic research documentation. |
+
+---
+
+## 8. Mathematical & Algorithmic Foundations
 
 ### A. Machine Learning Telemetry Drift (Ridge Regression)
 System metrics (CPU, RAM, Disk) fluctuate over time. Standard linear regression suffers from sensitivity to noisy outliers. The Twin implements **Ridge Regression (L2 Regularization)**:
@@ -286,7 +348,7 @@ Any tampering with file content, permission bits, or ownership invalidates the c
 
 ---
 
-## 8. Academic Research & Publication Guide
+## 9. Academic Research & Publication Guide
 
 This platform is ready-to-cite for academic papers submitted to IEEE, ACM, Springer, or Elsevier venues:
 

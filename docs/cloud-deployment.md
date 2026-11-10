@@ -73,11 +73,21 @@ docker compose up -d --build
 docker compose ps
 ```
 
-### 2.2 Access Points
+### 2.2 Access Points & Default Authentication
 - **Web UI & Security Operations Center (SOC)**: `http://localhost/` or `http://<server-ip>/`
 - **Backend REST API**: `http://localhost:8000/` or `http://<server-ip>:8000/`
 - **Interactive Swagger Docs**: `http://localhost/docs` or `http://localhost:8000/docs`
 - **Health Check Probe**: `http://localhost/health`
+
+#### Preconfigured Access Credentials:
+| Account Role | Username | Password | Access Rights |
+| :--- | :--- | :--- | :--- |
+| **System Admin** | `admin` | `admin123` | Full superuser access to run playbooks, attack simulations, and configure fleet. |
+| **Security Analyst** | `analyst` | `analyst123` | Security monitoring, telemetry analytics, and dry-run playbooks. |
+| **Read-Only Viewer** | `viewer` | `viewer123` | Read-only inspection of dashboards and historical metrics. |
+| **PostgreSQL Database** | `postgres` | `postgres123` | Relational database engine on port `5432` (`cyber_digital_twin`). |
+
+*(Tip: When opening `http://localhost/` or `http://localhost:8000/`, click "Auto-Fill & Enter Dashboard" to sign in instantly with administrator privileges.)*
 
 ---
 

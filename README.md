@@ -122,6 +122,32 @@ Once started, open your browser to:
 
 ---
 
+## 🔐 Master Usernames, Passwords & Access Places
+
+### 1. User Accounts & Default Passwords
+
+| Role | Username | Default Password | Access Level & Permissions | Where to Log In |
+| :--- | :--- | :--- | :--- | :--- |
+| **System Administrator** | `admin` | `admin123` *(or `admin`)* | **Full Superuser Control**: Run simulations, execute playbooks, FIM audits, view live metrics. | Web UI (`http://localhost:8000/`) or API (`/auth/login`) |
+| **Security Analyst** | `analyst` | `analyst123` | **Operations**: View telemetry, IOC intelligence, synthetic attack simulations, dry-run playbooks. | Web UI (`http://localhost:8000/`) or API (`/auth/login`) |
+| **Read-Only Auditor** | `viewer` | `viewer123` | **Read-Only**: View dashboards, metrics history, compliance reports. (Blocked from running attacks/playbooks). | Web UI (`http://localhost:8000/`) or API (`/auth/login`) |
+
+> ⚡ **1-Click Login**: On the web dashboard login window, simply click the **"Auto-Fill & Enter Dashboard"** button for instant access.
+
+### 2. Access Places & Web URLs
+
+| Access Place / Service | URL / Location | Port | Purpose |
+| :--- | :--- | :--- | :--- |
+| **Interactive SOC Dashboard** | `http://localhost:8000/` | `8000` | Main real-time security dashboard (telemetry, attacks, playbooks, FIM). |
+| **Docker Web Dashboard** | `http://localhost/` | `80` | Production UI served through Nginx reverse proxy. |
+| **Swagger REST API Docs** | `http://localhost:8000/docs` | `8000` | Interactive OpenAPI documentation to test all endpoints. |
+| **ReDoc API Documentation** | `http://localhost:8000/redoc` | `8000` | Complete API schemas and endpoint data contracts. |
+| **System Health Check** | `http://localhost:8000/health` | `8000` | Liveness and health probe (`{"status": "HEALTHY", ...}`). |
+| **Live Telemetry Stream** | `http://localhost:8000/metrics` | `8000` | Genuine local host CPU, memory, disk, and socket statistics. |
+| **PostgreSQL 16 Database** | `localhost:5432` *(in-memory fallback active)* | `5432` | Username: `postgres` \| Password: `postgres123` \| DB: `cyber_digital_twin` |
+
+---
+
 ## 📋 Complete CLI Command Reference (`manage.py`)
 
 The platform includes an interactive management tool (`manage.py`) to easily operate, test, and benchmark the system:
@@ -130,7 +156,7 @@ The platform includes an interactive management tool (`manage.py`) to easily ope
 | :--- | :--- | :--- |
 | **Check System Status** | `python manage.py status` | Inspects Python version, installed packages, and verifies all 10 subsystem source files. |
 | **Start Server** | `python manage.py run` | Starts the FastAPI server on port 8000 with auto-reload enabled. |
-| **Run All Tests** | `python manage.py test` | Runs the full 61-test automated regression suite using pytest. |
+| **Run All Tests** | `python manage.py test` | Runs the full 74-test automated regression suite across 14 test modules. |
 | **Run Attack Simulator**| `python manage.py simulate <SCENARIO>` | Executes a safe synthetic adversary attack (e.g. `SSH_BRUTE_FORCE`, `REVERSE_SHELL_INJECTION`, `RANSOMWARE_BURST`). |
 | **Predictive Forecast** | `python manage.py forecast` | Runs Scikit-learn Ridge regression to project telemetry drift and resource exhaustion. |
 | **File Integrity Audit**| `python manage.py fim-check` | Performs cryptographic HMAC-SHA256 integrity scan on critical system paths. |
