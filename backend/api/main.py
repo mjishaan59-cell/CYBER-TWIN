@@ -638,6 +638,18 @@ def get_predictive_failure(
         **result
     }
 
+
+@app.get("/predictive/forecast")
+def get_predictive_forecast_alias(
+    hostname: str = Query("prac-server", description="Target Linux host"),
+    limit: int = Query(60, ge=10, le=500),
+    current_user = Depends(get_current_user)
+):
+    from backend.api.predictive_routes import fetch_host_metrics
+    from backend.analytics.predictive_engine import predictive_engine
+    history = fetch_host_metrics(hostname, limit=limit)
+    return predictive_engine.generate_host_forecasts(hostname, history)
+
 # ============================================================
 # HOSTS
 # ============================================================
@@ -673,11 +685,7 @@ def get_hosts(
 # ============================================================
 
 @app.get("/health")
-def get_health(
-    current_user = Depends(
-        get_current_user
-    )
-):
+def get_health():
     try:
         with engine.connect() as connection:
             result = connection.execute(text("""

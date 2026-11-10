@@ -75,6 +75,15 @@ def trigger_integrity_scan(
     return fim_service.scan_host_integrity(req.hostname, req.active_snapshot)
 
 
+@router.post("/scan/{hostname}")
+def trigger_integrity_scan_by_path(
+    hostname: str,
+    current_user = Depends(require_roles({"admin", "analyst"}))
+):
+    """Execute an immediate file integrity verification scan against baseline for the specified host."""
+    return fim_service.scan_host_integrity(hostname)
+
+
 @router.get("/stats")
 def get_fim_stats(
     hostname: str = Query("prac-server", description="Host name"),

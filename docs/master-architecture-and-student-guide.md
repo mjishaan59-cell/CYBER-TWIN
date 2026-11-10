@@ -262,7 +262,7 @@ Open your web browser (Chrome, Edge, Firefox, Brave) to: **[http://localhost:800
 | **Run Real Hardware ML Forecast** | `python manage.py forecast` | Outputs Ridge regression slope, $R^2$ fit, and time-to-exhaustion. |
 | **Run Cryptographic FIM Audit** | `python manage.py fim-check` | Verifies SHA-256 + HMAC seals across system configuration baselines. |
 | **Run Cyber Attack Simulation** | `python manage.py simulate SSH_BRUTE_FORCE` | Emulates adversary attack and calculates MTTD, MTTR, and playbook actions. |
-| **Run Full 74-Test Verification**| `python manage.py test` | Runs all 14 automated test suites across all phases (74/74 passing). |
+| **Run Full 94-Test Verification**| `python manage.py test` | Runs all 15 automated test suites across all phases (94/94 passing). |
 | **Generate Research Experiments** | `python manage.py experiment` | Generates empirical scientific tables for research papers. |
 
 ---
@@ -319,7 +319,7 @@ This section provides an exhaustive reference of all usernames, passwords, acces
 | `backend/auth/routes.py` | User authentication, password verification, seed credentials, and JWT generation. |
 | `backend/simulation/` | Safe What-If synthetic attack simulation engine and adversary scenario definitions. |
 | `backend/incident_response/`| Autonomous containment playbooks, dry-run safety gates, and tamper-evident audit logs. |
-| `tests/` | Comprehensive automated test suite containing all 74 unit, integration, and security tests. |
+| `tests/` | Comprehensive automated test suite containing all 94 unit, integration, and security tests. |
 | `docs/` | Complete architectural, deployment, and academic research documentation. |
 
 ---

@@ -21,6 +21,7 @@ class TriggerScanRequest(BaseModel):
 
 
 @router.get("")
+@router.get("/")
 def get_processes(
     hostname: str = Query("prac-server", description="Host name"),
     sort_by: str = Query("cpu", description="Sort by 'cpu' or 'memory'"),

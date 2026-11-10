@@ -1,6 +1,6 @@
 # Cyber Digital Twin — Empirical Research Experiments & Benchmarks
 
-**Generated At**: 2026-11-10T12:52:42.299435+00:00  
+**Generated At**: 2026-11-10T15:38:46.090644+00:00  
 **Evaluation Scope**: Synthetic Adversary Emulation, Machine Learning Telemetry Forecasting, and System Acceleration.
 
 ---
@@ -42,8 +42,8 @@ Evaluation of the Cyber Digital Twin's TTL caching tier across 1000 sequential t
 
 | Metric | Non-Cached (DB Emulation) | Cyber Twin TTL Cache | Performance Gain |
 | :--- | :--- | :--- | :--- |
-| **Duration (Total)** | 0.00267 s | **0.00077 s** | **3.49x Faster** |
-| **Throughput (Ops/sec)** | 374,111 ops/s | **1,304,461 ops/s** | High Throughput |
+| **Duration (Total)** | 0.00179 s | **0.00052 s** | **3.43x Faster** |
+| **Throughput (Ops/sec)** | 559,879 ops/s | **1,919,754 ops/s** | High Throughput |
 | **Cache Hit Ratio** | N/A | **100.0%** | Consistent Cache Rate |
 
 ---

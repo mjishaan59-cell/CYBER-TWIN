@@ -1,6 +1,6 @@
 # 🛡️ AI-Powered Cyber Digital Twin for Linux
 
-[![Build & Test Status](https://img.shields.io/badge/tests-74%2F74%20passing-brightgreen.svg)](https://github.com/mjishaan59-cell/CYBER-TWIN)
+[![Build & Test Status](https://img.shields.io/badge/tests-94%2F94%20passing-brightgreen.svg)](https://github.com/mjishaan59-cell/CYBER-TWIN)
 [![Python Version](https://img.shields.io/badge/python-3.10%20%7C%203.11%20%7C%203.12-blue.svg)](https://www.python.org/)
 [![License](https://img.shields.io/badge/license-MIT-purple.svg)](LICENSE)
 [![Docker Support](https://img.shields.io/badge/docker-ready-2496ED.svg)](docker-compose.yml)
@@ -156,7 +156,7 @@ The platform includes an interactive management tool (`manage.py`) to easily ope
 | :--- | :--- | :--- |
 | **Check System Status** | `python manage.py status` | Inspects Python version, installed packages, and verifies all 10 subsystem source files. |
 | **Start Server** | `python manage.py run` | Starts the FastAPI server on port 8000 with auto-reload enabled. |
-| **Run All Tests** | `python manage.py test` | Runs the full 74-test automated regression suite across 14 test modules. |
+| **Run All Tests** | `python manage.py test` | Runs the full 94-test automated regression suite across 15 test modules. |
 | **Run Attack Simulator**| `python manage.py simulate <SCENARIO>` | Executes a safe synthetic adversary attack (e.g. `SSH_BRUTE_FORCE`, `REVERSE_SHELL_INJECTION`, `RANSOMWARE_BURST`). |
 | **Predictive Forecast** | `python manage.py forecast` | Runs Scikit-learn Ridge regression to project telemetry drift and resource exhaustion. |
 | **File Integrity Audit**| `python manage.py fim-check` | Performs cryptographic HMAC-SHA256 integrity scan on critical system paths. |
@@ -274,7 +274,7 @@ VIRUSTOTAL_API_KEY=
 
 ---
 
-## 🧪 Comprehensive Verification Suite (74/74 Passing)
+## 🧪 Comprehensive Verification Suite (94/94 Passing)
 
 Run the full automated test suite anytime:
 
@@ -286,6 +286,9 @@ python manage.py test
 | Phase | Subsystem | Test Suite | Tests Passed | Status |
 | :--- | :--- | :--- | :--- | :--- |
 | **Auth & RBAC** | Role-Based Access Control & Granular Permissions | `backend/auth/test_rbac.py` | 4 / 4 | ✅ Passed |
+| **Web Gateway**| Web Browser Dashboard Delivery & Prefixed Routing | `test_browser_and_web_serving.py` | 5 / 5 | ✅ Passed |
+| **Production E2E**| 20 Mission-Critical End-to-End API Routes | `test_live_e2e_endpoints.py` | 20 / 20 | ✅ Passed |
+| **CLI & Research**| Management CLI, One-Click Starters & Research Suite | `test_cli_and_experiments.py` | 4 / 4 | ✅ Passed |
 | **Phase 21.6** | Core Polish, CSS Sanitization, JWT Fallback | `test_phase21_6.py` | 6 / 6 | ✅ Passed |
 | **Phase 22** | AI Threat Intelligence & MITRE Correlation | `test_phase22_threat_intel.py` | 8 / 8 | ✅ Passed |
 | **Phase 23** | Predictive Analytics & ML Resource Drift Engine | `test_phase23_predictive_analytics.py` | 6 / 6 | ✅ Passed |
@@ -297,9 +300,7 @@ python manage.py test
 | **Phase 29** | Automated Incident Response & Playbooks | `test_phase29_incident_response.py` | 4 / 4 | ✅ Passed |
 | **Phase 30** | Master Regression Suite & In-Memory TTL Cache | `test_phase30_master_regression.py` | 4 / 4 | ✅ Passed |
 | **Phase 31–32**| Docker, Cloud Architecture, Nginx & Disaster Recovery | `test_phase31_32_deployment.py` | 5 / 5 | ✅ Passed |
-| **CLI & Research**| Management CLI, One-Click Starters & Research Suite | `test_cli_and_experiments.py` | 4 / 4 | ✅ Passed |
-| **Web Gateway**| Web Browser Dashboard Delivery & Prefixed Routing | `test_browser_and_web_serving.py` | 5 / 5 | ✅ Passed |
-| **TOTAL** | **Full Cyber Digital Twin Linux Platform** | **All 14 Suites** | **74 / 74** | **✅ 100% Passed** |
+| **TOTAL** | **Full Cyber Digital Twin Linux Platform** | **All 15 Suites** | **94 / 94** | **✅ 100% Passed** |
 
 ---
 

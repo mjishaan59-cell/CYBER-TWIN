@@ -49,6 +49,7 @@ def get_playbooks(
 
 
 @router.post("/playbooks/execute")
+@router.post("/playbooks/run")
 def execute_playbook(
     req: ExecutePlaybookRequest,
     current_user = Depends(require_roles({"admin", "analyst"}))
