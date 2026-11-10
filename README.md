@@ -9,6 +9,9 @@
 
 An enterprise-grade, real-time **Cyber Digital Twin (CDT)** and autonomous security operations platform designed for Linux systems, cloud clusters, and high-security infrastructure.
 
+> 📘 **Comprehensive Master Architecture & Student Guide**:  
+> For an in-depth, beginner-to-advanced technical walkthrough explaining all 32 subsystems, mathematical formulations, and operational manual, read the [Master Architecture & Student Guide](docs/master-architecture-and-student-guide.md).
+
 ---
 
 ## 📖 What is a Cyber Digital Twin? (In Plain English)

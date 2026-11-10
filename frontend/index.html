@@ -106,80 +106,80 @@
         </div>
     </div>
 
+    <!-- =====================================================
+         ENTERPRISE SOC NAVIGATION TABS
+    ====================================================== -->
+    <nav class="soc-nav-bar" id="socNavBar">
+        <button type="button" class="nav-tab active" onclick="switchSocTab('telemetry')">📊 Live Telemetry</button>
+        <button type="button" class="nav-tab" onclick="switchSocTab('processes')">🔍 Processes &amp; Services</button>
+        <button type="button" class="nav-tab" onclick="switchSocTab('network')">🌐 Network &amp; Sockets</button>
+        <button type="button" class="nav-tab" onclick="switchSocTab('fim')">🛡️ File Integrity (FIM)</button>
+        <button type="button" class="nav-tab" onclick="switchSocTab('predictive')">📈 Predictive AI</button>
+        <button type="button" class="nav-tab" onclick="switchSocTab('simulator')">⚔️ Attack Lab</button>
+        <button type="button" class="nav-tab" onclick="switchSocTab('playbooks')">🚨 Incident Response</button>
+        <button type="button" class="nav-tab" onclick="switchSocTab('threatintel')">📚 Threat Intelligence</button>
+        <button type="button" class="nav-tab" onclick="switchSocTab('fleet')">🖥️ Fleet Hub</button>
+    </nav>
 
     <!-- =====================================================
          CURRENT SYSTEM STATUS
     ====================================================== -->
-
     <div id="dashboard">
-
         <div class="card">
-            <h2>Hostname</h2>
+            <h2>💻 Hostname</h2>
             <p id="hostname">Loading...</p>
         </div>
+        <div class="card">
+            <h2>🟢 System Status</h2>
+            <p id="status">Loading...</p>
+        </div>
+        <div class="card">
+            <h2>⚡ CPU Usage</h2>
+            <p id="cpu">Loading...</p>
+        </div>
+        <div class="card">
+            <h2>🧠 Memory Usage</h2>
+            <p id="memory">Loading...</p>
+        </div>
+        <div class="card">
+            <h2>💾 Disk Usage</h2>
+            <p id="disk">Loading...</p>
+        </div>
+    </div>
 
     <!-- =====================================================
          INFRASTRUCTURE HEALTH MONITORING
     ====================================================== -->
-
-    <section id="infrastructure-health">
-
+    <section id="infrastructure-health" class="card">
         <h2>Infrastructure Health</h2>
-
-        <div class="card">
-            <h3>Overall Health Score</h3>
-            <p id="infraScore">Loading...</p>
-            <p id="infraStatus">Loading...</p>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 14px; margin-top: 14px;">
+            <div class="card" style="margin-bottom: 0;">
+                <h3>Health Score</h3>
+                <p id="infraScore" style="color: #00ffcc;">Loading...</p>
+                <p id="infraStatus" style="font-size: 0.9em; margin-top: 4px;">Loading...</p>
+            </div>
+            <div class="card" style="margin-bottom: 0;">
+                <h3>API Gateway</h3>
+                <p id="infraApi" style="color: #10b981;">Loading...</p>
+            </div>
+            <div class="card" style="margin-bottom: 0;">
+                <h3>Database Engine</h3>
+                <p id="infraDatabase" style="color: #10b981;">Loading...</p>
+            </div>
+            <div class="card" style="margin-bottom: 0;">
+                <h3>Telemetry Collector</h3>
+                <p id="infraCollector" style="color: #10b981;">Loading...</p>
+            </div>
+            <div class="card" style="margin-bottom: 0;">
+                <h3>Storage Partition</h3>
+                <p id="infraDisk">Loading...</p>
+            </div>
         </div>
-
-        <div class="card">
-            <h3>API Status</h3>
-            <p id="infraApi">Loading...</p>
+        <div style="margin-top: 16px;">
+            <h3 style="margin-bottom: 8px;">Active Host Telemetry Scope</h3>
+            <pre id="infraHosts" style="background: #090e1a; padding: 12px; border-radius: 6px; font-size: 0.9em; border: 1px solid #1e293b; color: #a0aec0; margin: 0;">Loading...</pre>
         </div>
-
-        <div class="card">
-            <h3>Database Status</h3>
-            <p id="infraDatabase">Loading...</p>
-        </div>
-
-        <div class="card">
-            <h3>Collector Status</h3>
-            <p id="infraCollector">Loading...</p>
-        </div>
-
-        <div class="card">
-            <h3>Controller Disk</h3>
-            <p id="infraDisk">Loading...</p>
-        </div>
-
-        <h3>Monitored Hosts</h3>
-        <div class="card">
-            <p id="infraHosts">Loading...</p>
-        </div>
-
     </section>
-
-        <div class="card">
-            <h2>Status</h2>
-            <p id="status">Loading...</p>
-        </div>
-
-        <div class="card">
-            <h2>CPU Usage</h2>
-            <p id="cpu">Loading...</p>
-        </div>
-
-        <div class="card">
-            <h2>Memory Usage</h2>
-            <p id="memory">Loading...</p>
-        </div>
-
-        <div class="card">
-            <h2>Disk Usage</h2>
-            <p id="disk">Loading...</p>
-        </div>
-
-    </div>
 
 
     <!-- =====================================================

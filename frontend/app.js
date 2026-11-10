@@ -1013,6 +1013,34 @@ console.log("=== CYBER DIGITAL TWIN APP.JS LOADED ===");
 
 const API = "/api";
 
+function switchSocTab(tabId) {
+    const tabMap = {
+        'telemetry': 'dashboard',
+        'processes': 'processMonitoringSection',
+        'network': 'networkSecuritySection',
+        'fim': 'fimMonitoringSection',
+        'predictive': 'predictiveAnalyticsSection',
+        'simulator': 'attackSimulationSection',
+        'playbooks': 'incidentResponseSection',
+        'threatintel': 'threatIntelligenceSection',
+        'fleet': 'multiHostSection'
+    };
+
+    const navButtons = document.querySelectorAll('.soc-nav-bar .nav-tab');
+    navButtons.forEach(btn => btn.classList.remove('active'));
+
+    if (window.event && window.event.target) {
+        window.event.target.classList.add('active');
+    }
+
+    const targetId = tabMap[tabId] || 'dashboard';
+    const targetEl = document.getElementById(targetId);
+    if (targetEl) {
+        targetEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+}
+window.switchSocTab = switchSocTab;
+
 let cpuChart;
 let memoryChart;
 let diskChart;
@@ -1060,8 +1088,9 @@ async function loadInfrastructureHealth() {
         document.getElementById("infraCollector").innerText =
             data.components.collector;
 
+        const diskMeta = data.components?.controller_disk?.usage_percent;
         document.getElementById("infraDisk").innerText =
-            `${data.components.controller_disk.usage_percent}% used`;
+            diskMeta !== undefined ? `${diskMeta}% used` : `${data.components?.disk || 'Healthy'}`;
 
         document.getElementById("infraHosts").innerText =
             Object.entries(data.hosts)
