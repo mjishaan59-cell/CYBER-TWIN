@@ -1,0 +1,21 @@
+# Lightweight Production Nginx Container for Cyber Digital Twin Frontend
+FROM nginx:1.27-alpine
+
+# Remove default boilerplate configuration
+RUN rm -rf /etc/nginx/conf.d/* /usr/share/nginx/html/*
+
+# Copy custom reverse proxy and security configuration
+COPY deployment/nginx/cyber-twin.conf /etc/nginx/conf.d/default.conf
+
+# Copy frontend static assets (HTML, CSS, JavaScript)
+COPY frontend/ /usr/share/nginx/html/
+
+# Add curl for container health check
+RUN apk add --no-cache curl
+
+EXPOSE 80 443
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \
+    CMD curl -f http://localhost:80/ || exit 1
+
+CMD ["nginx", "-g", "daemon off;"]
