@@ -1416,6 +1416,144 @@
     </section>
 
     <!-- =====================================================
+         PHASE 26 - NETWORK SECURITY MONITORING
+    ====================================================== -->
+
+    <section class="card" id="networkSecuritySection">
+
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+            <h2 style="margin: 0;">Network Security Monitoring</h2>
+            <div style="display: flex; gap: 10px;">
+                <button type="button" onclick="triggerNetworkScan()" style="padding: 7px 15px; background: #0077cc; color: white; border: none; border-radius: 6px; font-weight: bold; cursor: pointer;">Scan Network Now</button>
+                <button type="button" onclick="loadNetworkData()" style="padding: 7px 15px; background: #475569; color: white; border: none; border-radius: 6px; font-weight: bold; cursor: pointer;">Refresh</button>
+            </div>
+        </div>
+
+        <!-- Network Summary Metrics -->
+        <div class="security-summary">
+            <div>
+                <span>Active Sockets</span>
+                <strong id="netActiveConnCount">-</strong>
+            </div>
+            <div>
+                <span>Listening Ports</span>
+                <strong id="netListeningPortCount">-</strong>
+            </div>
+            <div>
+                <span>Suspicious Sockets</span>
+                <strong id="netSuspiciousConnCount" style="color: #dc2626;">-</strong>
+            </div>
+            <div>
+                <span>Unexpected Ports</span>
+                <strong id="netUnauthorizedPortCount" style="color: #ea580c;">-</strong>
+            </div>
+            <div>
+                <span>Total Outbound</span>
+                <strong id="netBytesSentCount">-</strong>
+            </div>
+            <div>
+                <span>Total Inbound</span>
+                <strong id="netBytesRecvCount">-</strong>
+            </div>
+        </div>
+
+        <!-- Network Security Alerts Table -->
+        <div class="table-container" style="margin-top: 15px;" id="networkAlertsContainer">
+            <h3 style="color: #dc2626;">Network Security Alerts & Anomalies</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Timestamp</th>
+                        <th>Host</th>
+                        <th>Alert Type</th>
+                        <th>Source / Dest</th>
+                        <th>Proto</th>
+                        <th>Severity</th>
+                        <th>MITRE</th>
+                        <th>Description</th>
+                    </tr>
+                </thead>
+                <tbody id="netAlertsTable">
+                    <tr>
+                        <td colspan="8">Loading network security alerts...</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Listening Ports Table -->
+        <div class="table-container" style="margin-top: 20px;">
+            <h3>Open Listening Ports & Bound Services</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Host</th>
+                        <th>Proto</th>
+                        <th>Bind Address</th>
+                        <th>Port</th>
+                        <th>Service / Hint</th>
+                        <th>PID & Process</th>
+                        <th>Status</th>
+                        <th>Risk Level</th>
+                    </tr>
+                </thead>
+                <tbody id="listeningPortsTable">
+                    <tr>
+                        <td colspan="8">Loading listening ports...</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Active Connections Table -->
+        <div class="table-container" style="margin-top: 20px;">
+            <h3>Active Socket Connections</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Proto</th>
+                        <th>Local Socket</th>
+                        <th>Remote Socket</th>
+                        <th>State</th>
+                        <th>Process</th>
+                        <th>Security Assessment</th>
+                        <th>Risk Score</th>
+                    </tr>
+                </thead>
+                <tbody id="activeConnectionsTable">
+                    <tr>
+                        <td colspan="7">Loading active network connections...</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Interfaces Table -->
+        <div class="table-container" style="margin-top: 20px;">
+            <h3>Network Interfaces & Traffic Health</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Interface</th>
+                        <th>Status</th>
+                        <th>Speed</th>
+                        <th>Bytes Sent</th>
+                        <th>Bytes Recv</th>
+                        <th>Packets In / Out</th>
+                        <th>Drop / Err Rate</th>
+                    </tr>
+                </thead>
+                <tbody id="networkInterfacesTable">
+                    <tr>
+                        <td colspan="7">Loading interfaces...</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+    </section>
+
+    <!-- =====================================================
          JAVASCRIPT
     ====================================================== -->
 

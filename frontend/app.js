@@ -713,6 +713,8 @@ if (
 
     loadProcessData();
 
+    loadNetworkData();
+
     startAutoRefresh();
 
 
@@ -883,6 +885,13 @@ function startAutoRefresh() {
     refreshIntervals.push(
         setInterval(
             loadProcessData,
+            10000
+        )
+    );
+
+    refreshIntervals.push(
+        setInterval(
+            loadNetworkData,
             10000
         )
     );
@@ -5067,4 +5076,180 @@ async function triggerProcessScan() {
 
 async function triggerServiceScan() {
     await triggerProcessScan();
+}
+
+// ============================================================
+// PHASE 26 - NETWORK SECURITY MONITORING
+// ============================================================
+
+function formatBytes(bytes) {
+    if (!bytes || bytes === 0) return "0 B";
+    const k = 1024;
+    const sizes = ["B", "KB", "MB", "GB", "TB"];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
+}
+
+async function loadNetworkData() {
+    try {
+        // 1. Fetch Stats
+        const statsRes = await apiFetch("/network/stats?hostname=prac-server");
+        if (statsRes && statsRes.ok) {
+            const stats = await statsRes.json();
+            const activeEl = document.getElementById("netActiveConnCount");
+            const listenEl = document.getElementById("netListeningPortCount");
+            const suspEl = document.getElementById("netSuspiciousConnCount");
+            const unauthEl = document.getElementById("netUnauthorizedPortCount");
+            const txEl = document.getElementById("netBytesSentCount");
+            const rxEl = document.getElementById("netBytesRecvCount");
+
+            if (activeEl) activeEl.textContent = stats.active_connections_count ?? 0;
+            if (listenEl) listenEl.textContent = stats.listening_ports_count ?? 0;
+            if (suspEl) suspEl.textContent = stats.suspicious_connections_count ?? 0;
+            if (unauthEl) unauthEl.textContent = stats.unauthorized_ports_count ?? 0;
+            if (txEl) txEl.textContent = formatBytes(stats.total_bytes_sent);
+            if (rxEl) rxEl.textContent = formatBytes(stats.total_bytes_recv);
+        }
+
+        // 2. Fetch Listening Ports
+        const portsRes = await apiFetch("/network/ports?hostname=prac-server");
+        const portsTable = document.getElementById("listeningPortsTable");
+        if (portsRes && portsRes.ok && portsTable) {
+            const ports = await portsRes.json();
+            portsTable.innerHTML = "";
+            if (!ports || ports.length === 0) {
+                portsTable.innerHTML = `<tr><td colspan="8" style="text-align: center; color: #64748b;">No open listening ports detected.</td></tr>`;
+            } else {
+                ports.forEach(p => {
+                    const tr = document.createElement("tr");
+                    const isAuth = p.is_authorized;
+                    const riskColor = p.risk_level === "CRITICAL" ? "#dc2626" :
+                                      p.risk_level === "HIGH" ? "#ea580c" :
+                                      p.risk_level === "MEDIUM" ? "#d97706" : "#16a34a";
+
+                    tr.innerHTML = `
+                        <td>${escapeHtml(p.hostname || "prac-server")}</td>
+                        <td><span style="font-weight: bold; text-transform: uppercase;">${escapeHtml(p.protocol)}</span></td>
+                        <td style="font-family: monospace;">${escapeHtml(p.bind_address)}</td>
+                        <td style="font-family: monospace; font-weight: bold; color: #1e293b;">${p.port}</td>
+                        <td><span style="background: #f1f5f9; padding: 2px 6px; border-radius: 4px; font-size: 11px; font-weight: 500;">${escapeHtml(p.service_hint || "Custom")}</span></td>
+                        <td style="font-size: 12px;">${escapeHtml(p.process_name || "-")} (PID: ${p.pid || "-"})</td>
+                        <td><span style="font-weight: bold; color: ${isAuth ? '#16a34a' : '#dc2626'};">${isAuth ? '✓ Authorized' : '⚠ Unexpected'}</span></td>
+                        <td><span style="color: white; background: ${riskColor}; padding: 2px 7px; border-radius: 4px; font-size: 11px; font-weight: bold;">${escapeHtml(p.risk_level || "LOW")}</span></td>
+                    `;
+                    portsTable.appendChild(tr);
+                });
+            }
+        }
+
+        // 3. Fetch Active Connections
+        const connRes = await apiFetch("/network/connections?hostname=prac-server&limit=20");
+        const connTable = document.getElementById("activeConnectionsTable");
+        if (connRes && connRes.ok && connTable) {
+            const conns = await connRes.json();
+            connTable.innerHTML = "";
+            if (!conns || conns.length === 0) {
+                connTable.innerHTML = `<tr><td colspan="7" style="text-align: center; color: #64748b;">No active connections recorded.</td></tr>`;
+            } else {
+                conns.forEach(c => {
+                    const tr = document.createElement("tr");
+                    const isSusp = c.is_suspicious;
+                    const rAddr = c.remote_address ? `${c.remote_address}:${c.remote_port}` : "*:*";
+                    const lAddr = `${c.local_address}:${c.local_port}`;
+
+                    tr.innerHTML = `
+                        <td style="text-transform: uppercase; font-size: 12px; font-weight: bold;">${escapeHtml(c.protocol)}</td>
+                        <td style="font-family: monospace; font-size: 12px;">${escapeHtml(lAddr)}</td>
+                        <td style="font-family: monospace; font-size: 12px; font-weight: bold;">${escapeHtml(rAddr)}</td>
+                        <td><span style="font-size: 11px; background: #f8fafc; padding: 2px 6px; border: 1px solid #e2e8f0; border-radius: 4px;">${escapeHtml(c.status)}</span></td>
+                        <td style="font-size: 12px;">${escapeHtml(c.process_name || "-")} (${c.pid || "-"})</td>
+                        <td><span style="font-weight: bold; color: ${isSusp ? '#dc2626' : '#16a34a'};">${isSusp ? '⚠ ' + escapeHtml(c.threat_description) : '✓ Normal'}</span></td>
+                        <td><strong style="color: ${isSusp ? '#dc2626' : '#64748b'};">${c.risk_score || 0}</strong></td>
+                    `;
+                    connTable.appendChild(tr);
+                });
+            }
+        }
+
+        // 4. Fetch Network Alerts
+        const alertRes = await apiFetch("/network/alerts?hostname=prac-server&limit=10");
+        const alertTable = document.getElementById("netAlertsTable");
+        if (alertRes && alertRes.ok && alertTable) {
+            const alerts = await alertRes.json();
+            alertTable.innerHTML = "";
+            if (!alerts || alerts.length === 0) {
+                alertTable.innerHTML = `<tr><td colspan="8" style="text-align: center; color: #16a34a; font-weight: 500;">✓ No active network anomalies detected.</td></tr>`;
+            } else {
+                alerts.forEach(al => {
+                    const tr = document.createElement("tr");
+                    const sevColor = al.severity === "CRITICAL" ? "#dc2626" :
+                                     al.severity === "HIGH" ? "#ea580c" :
+                                     al.severity === "MEDIUM" ? "#d97706" : "#16a34a";
+                    const timeStr = al.created_at ? new Date(al.created_at).toLocaleTimeString() : "-";
+                    const endpoints = al.destination_ip ? `${al.source_ip}:${al.source_port} → ${al.destination_ip}:${al.destination_port}` : `${al.source_ip || "-"}:${al.source_port || "-"}`;
+
+                    tr.innerHTML = `
+                        <td style="font-size: 12px; color: #64748b;">${escapeHtml(timeStr)}</td>
+                        <td>${escapeHtml(al.hostname || "prac-server")}</td>
+                        <td style="font-weight: 500;">${escapeHtml(al.alert_type)}</td>
+                        <td style="font-family: monospace; font-size: 11px;">${escapeHtml(endpoints)}</td>
+                        <td><span style="text-transform: uppercase; font-size: 11px;">${escapeHtml(al.protocol || "TCP")}</span></td>
+                        <td><span style="color: white; background: ${sevColor}; padding: 2px 7px; border-radius: 4px; font-size: 11px; font-weight: bold;">${escapeHtml(al.severity)}</span></td>
+                        <td><span style="font-family: monospace; font-size: 11px; background: #f1f5f9; padding: 2px 5px; border-radius: 3px;">${escapeHtml(al.mitre_technique || "-")}</span></td>
+                        <td style="font-size: 12px; color: #334155;">${escapeHtml(al.description)}</td>
+                    `;
+                    alertTable.appendChild(tr);
+                });
+            }
+        }
+
+        // 5. Fetch Interfaces
+        const ifaceRes = await apiFetch("/network/interfaces?hostname=prac-server");
+        const ifaceTable = document.getElementById("networkInterfacesTable");
+        if (ifaceRes && ifaceRes.ok && ifaceTable) {
+            const ifaces = await ifaceRes.json();
+            ifaceTable.innerHTML = "";
+            if (!ifaces || ifaces.length === 0) {
+                ifaceTable.innerHTML = `<tr><td colspan="7" style="text-align: center; color: #64748b;">No interfaces detected.</td></tr>`;
+            } else {
+                ifaces.forEach(i => {
+                    const tr = document.createElement("tr");
+                    tr.innerHTML = `
+                        <td style="font-family: monospace; font-weight: bold;">${escapeHtml(i.interface_name)}</td>
+                        <td><span style="color: ${i.is_up ? '#16a34a' : '#dc2626'}; font-weight: bold;">${i.is_up ? 'UP' : 'DOWN'}</span></td>
+                        <td>${i.speed_mbps} Mbps</td>
+                        <td>${formatBytes(i.bytes_sent)}</td>
+                        <td>${formatBytes(i.bytes_recv)}</td>
+                        <td style="font-size: 12px;">↓ ${i.packets_recv.toLocaleString()} / ↑ ${i.packets_sent.toLocaleString()}</td>
+                        <td style="font-size: 12px; color: ${(i.dropin > 0 || i.dropout > 0 || i.errin > 0) ? '#dc2626' : '#16a34a'};">
+                            ${(i.dropin > 0 || i.dropout > 0 || i.errin > 0) ? `Drops: ${i.dropin + i.dropout}, Errs: ${i.errin}` : '✓ 0 errors'}
+                        </td>
+                    `;
+                    ifaceTable.appendChild(tr);
+                });
+            }
+        }
+
+    } catch (err) {
+        console.error("Error loading network security data:", err);
+    }
+}
+
+async function triggerNetworkScan() {
+    try {
+        const res = await apiFetch("/network/scan", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ hostname: "prac-server" })
+        });
+        if (res && res.ok) {
+            const data = await res.json();
+            alert(`Network scan complete. Scanned ${data.interfaces_count} interfaces, ${data.total_connections} sockets, ${data.listening_ports_count} listening ports. New alerts: ${data.new_alerts_emitted}`);
+            loadNetworkData();
+        } else {
+            alert("Scan failed. Verify analyst or admin privileges.");
+        }
+    } catch (err) {
+        alert(`Error triggering network scan: ${err.message}`);
+    }
 }

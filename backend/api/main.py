@@ -100,6 +100,10 @@ from backend.api.process_routes import (
     router as process_router
 )
 
+from backend.api.network_routes import (
+    router as network_router
+)
+
 from backend.auth.dependencies import (
     get_current_user,
     require_roles
@@ -230,6 +234,10 @@ app.include_router(
 
 app.include_router(
     process_router
+)
+
+app.include_router(
+    network_router
 )
 
 # ============================================================
