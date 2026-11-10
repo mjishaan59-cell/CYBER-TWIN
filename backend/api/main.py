@@ -84,6 +84,10 @@ from backend.auth.routes import (
     router as auth_router
 )
 
+from backend.api.threat_intel_routes import (
+    router as threat_intel_router
+)
+
 from backend.auth.dependencies import (
     get_current_user,
     require_roles
@@ -198,6 +202,10 @@ app.add_middleware(SlowAPIMiddleware)
 
 app.include_router(
     auth_router
+)
+
+app.include_router(
+    threat_intel_router
 )
 
 # ============================================================

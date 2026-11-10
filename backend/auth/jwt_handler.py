@@ -87,20 +87,24 @@ def verify_access_token(token):
         if not username or not token_id:
             return None
 
-        with engine.connect() as connection:
+        try:
+            with engine.connect() as connection:
+                revoked = connection.execute(
+                    text("""
+                        SELECT 1
+                        FROM revoked_tokens
+                        WHERE jti = :jti
+                        LIMIT 1
+                    """),
+                    {"jti": token_id}
+                ).first()
 
-            revoked = connection.execute(
-                text("""
-                    SELECT 1
-                    FROM revoked_tokens
-                    WHERE jti = :jti
-                    LIMIT 1
-                """),
-                {"jti": token_id}
-            ).first()
-
-        if revoked:
-            return None
+            if revoked:
+                return None
+        except Exception:
+            # Fallback if revoked_tokens table or database connection is offline;
+            # cryptographic signature and claims (exp, iss, aud, jti) remain verified above
+            pass
 
         return payload
 

@@ -1128,6 +1128,79 @@
     </section>
 
     <!-- =====================================================
+         PHASE 22 - AI THREAT INTELLIGENCE & IOC MANAGEMENT
+    ====================================================== -->
+
+    <section class="card" id="threatIntelligenceSection">
+
+        <h2>AI Threat Intelligence & IOC Management</h2>
+
+        <!-- KPI Metrics -->
+        <div class="security-summary">
+            <div>
+                <span>Active IOCs</span>
+                <strong id="threatTotalIocs">-</strong>
+            </div>
+            <div>
+                <span>Critical Threats</span>
+                <strong id="threatCriticalIocs">-</strong>
+            </div>
+            <div>
+                <span>Threat Lookups</span>
+                <strong id="threatLookupCount">-</strong>
+            </div>
+            <div>
+                <span>ATT&CK Techniques</span>
+                <strong id="threatMitreCount">-</strong>
+            </div>
+        </div>
+
+        <!-- Real-Time IOC Lookup Tool -->
+        <div style="margin: 20px 0; padding: 15px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px;">
+            <h3 style="margin-top: 0; color: #1e293b;">Threat Intelligence Lookup</h3>
+            <p style="color: #64748b; font-size: 13px; margin-bottom: 10px;">Query indicators (IP Address, Domain, URL, or SHA-256 Hash) against active threat feeds and historical intelligence.</p>
+            <div style="display: flex; gap: 10px; max-width: 800px;">
+                <input type="text" id="threatLookupInput" placeholder="e.g. 194.26.29.118 or malware hash" style="flex: 1; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 14px;">
+                <button type="button" id="threatLookupBtn" onclick="queryThreatLookup()" style="padding: 10px 20px; background: #0077cc; color: white; border: none; border-radius: 6px; font-weight: bold; cursor: pointer;">Lookup</button>
+            </div>
+            <div id="threatLookupResult" style="margin-top: 15px; display: none; padding: 12px; border-radius: 6px;"></div>
+        </div>
+
+        <!-- Active Threat Indicators Table -->
+        <div class="table-container">
+            <h3>Active Threat Indicators (IOCs)</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Indicator</th>
+                        <th>Type</th>
+                        <th>Threat Type</th>
+                        <th>Severity</th>
+                        <th>Confidence</th>
+                        <th>MITRE ATT&CK</th>
+                        <th>Source Feed</th>
+                        <th>Recommendation</th>
+                    </tr>
+                </thead>
+                <tbody id="threatIndicatorsTable">
+                    <tr>
+                        <td colspan="8">Loading threat intelligence indicators...</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- MITRE ATT&CK Mapping Reference -->
+        <div style="margin-top: 25px;">
+            <h3>MITRE ATT&CK Technique Coverage</h3>
+            <div id="mitreTechniquesList" style="display: flex; flex-wrap: wrap; gap: 10px; margin-top: 10px;">
+                <!-- Populated by JavaScript -->
+            </div>
+        </div>
+
+    </section>
+
+    <!-- =====================================================
          JAVASCRIPT
     ====================================================== -->
 

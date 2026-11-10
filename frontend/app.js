@@ -703,6 +703,9 @@ if (
 
     loadSecurityResponseAudit();
 
+    loadThreatIntelligence();
+
+    loadMitreCoverage();
 
     startAutoRefresh();
 
@@ -847,6 +850,13 @@ function startAutoRefresh() {
         setInterval(
             loadSecurityDecisions,
             5000
+        )
+    );
+
+    refreshIntervals.push(
+        setInterval(
+            loadThreatIntelligence,
+            10000
         )
     );
 
@@ -4449,4 +4459,159 @@ async function loadNotificationSimulationHistory() {
 
     }
 
+}
+
+// ============================================================
+// PHASE 22: AI THREAT INTELLIGENCE & IOC DASHBOARD INTEGRATION
+// ============================================================
+
+async function loadThreatIntelligence() {
+    try {
+        // 1. Load Threat Stats
+        const statsRes = await apiFetch("/threat-intel/stats");
+        if (statsRes && statsRes.ok) {
+            const stats = await statsRes.json();
+            const totalEl = document.getElementById("threatTotalIocs");
+            const critEl = document.getElementById("threatCriticalIocs");
+            const lookupEl = document.getElementById("threatLookupCount");
+            const mitreEl = document.getElementById("threatMitreCount");
+            if (totalEl) totalEl.textContent = stats.total_active_iocs ?? 0;
+            if (critEl) critEl.textContent = stats.critical_severity_count ?? 0;
+            if (lookupEl) lookupEl.textContent = stats.total_lookups ?? 0;
+            if (mitreEl) mitreEl.textContent = stats.mitre_techniques_cataloged ?? 0;
+        }
+
+        // 2. Load Indicators Table
+        const indicatorsRes = await apiFetch("/threat-intel/indicators?limit=25");
+        const tbody = document.getElementById("threatIndicatorsTable");
+        if (!tbody) return;
+
+        if (indicatorsRes && indicatorsRes.ok) {
+            const indicators = await indicatorsRes.json();
+            tbody.textContent = "";
+
+            if (!indicators || indicators.length === 0) {
+                const tr = document.createElement("tr");
+                const td = document.createElement("td");
+                td.colSpan = 8;
+                td.textContent = "No active threat indicators currently recorded.";
+                tr.appendChild(td);
+                tbody.appendChild(tr);
+                return;
+            }
+
+            indicators.forEach(ioc => {
+                const tr = document.createElement("tr");
+
+                const sevColor = ioc.severity === "CRITICAL" ? "#dc2626" :
+                                 ioc.severity === "HIGH" ? "#ea580c" :
+                                 ioc.severity === "MEDIUM" ? "#d97706" : "#16a34a";
+
+                tr.innerHTML = `
+                    <td style="font-family: monospace; font-weight: bold;">${escapeHtml(ioc.indicator_value)}</td>
+                    <td><span style="background: #e2e8f0; padding: 2px 6px; border-radius: 4px; font-size: 11px;">${escapeHtml(ioc.indicator_type || "IP")}</span></td>
+                    <td>${escapeHtml(ioc.threat_type || "-")}</td>
+                    <td><span style="color: white; background: ${sevColor}; padding: 3px 8px; border-radius: 4px; font-size: 11px; font-weight: bold;">${escapeHtml(ioc.severity || "MEDIUM")}</span></td>
+                    <td>${ioc.confidence_score ?? 70}%</td>
+                    <td><span style="color: #2563eb; font-weight: 500;">${escapeHtml(ioc.mitre_attack_id || "T1110")}</span> <small>(${escapeHtml(ioc.mitre_tactic || "")})</small></td>
+                    <td>${escapeHtml(ioc.source_feed || "Intelligence")}</td>
+                    <td><span style="font-size: 12px; font-weight: 600; color: ${ioc.severity === 'CRITICAL' ? '#dc2626' : '#2563eb'}">${ioc.severity === 'CRITICAL' ? 'BLOCK' : 'MONITOR'}</span></td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+    } catch (err) {
+        console.error("Error loading threat intelligence:", err);
+    }
+}
+
+async function queryThreatLookup() {
+    const input = document.getElementById("threatLookupInput");
+    const resultBox = document.getElementById("threatLookupResult");
+    if (!input || !resultBox) return;
+
+    const val = input.value.trim();
+    if (!val) {
+        resultBox.style.display = "block";
+        resultBox.style.background = "#fee2e2";
+        resultBox.style.color = "#991b1b";
+        resultBox.textContent = "Please enter an IP, domain, URL, or hash.";
+        return;
+    }
+
+    resultBox.style.display = "block";
+    resultBox.style.background = "#f1f5f9";
+    resultBox.style.color = "#334155";
+    resultBox.textContent = `Querying intelligence for "${val}"...`;
+
+    try {
+        const res = await apiFetch(`/threat-intel/lookup/${encodeURIComponent(val)}`);
+        if (!res.ok) throw new Error(`Lookup failed: ${res.statusText}`);
+        const data = await res.json();
+
+        if (data.matched) {
+            const sevColor = data.severity === "CRITICAL" ? "#ef4444" : "#f97316";
+            resultBox.style.background = "#fef2f2";
+            resultBox.style.color = "#991b1b";
+            resultBox.style.border = "1px solid #fecaca";
+            resultBox.innerHTML = `
+                <div style="font-weight: bold; font-size: 15px; margin-bottom: 5px;">
+                    ⚠️ MALICIOUS INDICATOR DETECTED
+                </div>
+                <div><strong>Indicator:</strong> <code>${escapeHtml(data.indicator_value)}</code> (${data.indicator_type})</div>
+                <div><strong>Threat Type:</strong> ${escapeHtml(data.threat_type)} | <strong>Threat Score:</strong> ${data.threat_score}/100 (<span style="color: ${sevColor}; font-weight: bold;">${data.severity}</span>)</div>
+                <div><strong>Confidence:</strong> ${data.confidence_score}% | <strong>Source Feed:</strong> ${escapeHtml(data.source_feed || "Unknown")}</div>
+                ${data.mitre_attack ? `<div><strong>MITRE ATT&CK:</strong> ${escapeHtml(data.mitre_attack.attack_id)} - ${escapeHtml(data.mitre_attack.technique_name)} (${escapeHtml(data.mitre_attack.tactic)})</div>` : ''}
+                <div style="margin-top: 5px;"><strong>Description:</strong> ${escapeHtml(data.description || "-")}</div>
+                <div style="margin-top: 8px; font-weight: bold; color: #b91c1c;">Recommended Action: ${escapeHtml(data.recommendation)}</div>
+            `;
+        } else {
+            resultBox.style.background = "#f0fdf4";
+            resultBox.style.color = "#166534";
+            resultBox.style.border = "1px solid #bbf7d0";
+            resultBox.innerHTML = `
+                <div style="font-weight: bold; font-size: 14px;">✅ No Malicious Activity Recorded</div>
+                <div style="margin-top: 4px;">Indicator <code>${escapeHtml(data.indicator_value)}</code> is clean across active intelligence feeds.</div>
+            `;
+        }
+        // Refresh lookup counter
+        loadThreatIntelligence();
+    } catch (err) {
+        resultBox.style.background = "#fee2e2";
+        resultBox.style.color = "#991b1b";
+        resultBox.textContent = `Error performing lookup: ${err.message}`;
+    }
+}
+
+async function loadMitreCoverage() {
+    try {
+        const res = await apiFetch("/threat-intel/mitre");
+        const container = document.getElementById("mitreTechniquesList");
+        if (!container || !res.ok) return;
+
+        const techniques = await res.json();
+        container.textContent = "";
+
+        techniques.forEach(t => {
+            const badge = document.createElement("div");
+            badge.style.cssText = "padding: 8px 12px; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 6px; box-shadow: 0 1px 2px rgba(0,0,0,0.05); font-size: 12px;";
+            badge.innerHTML = `
+                <strong style="color: #0077cc;">${escapeHtml(t.id)}</strong> - <span>${escapeHtml(t.name)}</span>
+                <div style="color: #64748b; font-size: 11px; margin-top: 2px;">Tactic: <em>${escapeHtml(t.tactic)}</em></div>
+            `;
+            container.appendChild(badge);
+        });
+    } catch (err) {
+        console.error("Error loading MITRE coverage:", err);
+    }
+}
+
+function escapeHtml(str) {
+    if (!str) return "";
+    return String(str)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
 }
