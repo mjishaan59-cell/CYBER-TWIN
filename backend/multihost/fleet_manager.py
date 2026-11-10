@@ -13,8 +13,26 @@ from backend.database import engine
 
 SEED_SERVERS = [
     {
+        "hostname": "localhost",
+        "display_name": "Local Host (This Computer - Live)",
+        "ip_address": "127.0.0.1",
+        "ssh_port": 22,
+        "ssh_username": "local",
+        "auth_method": "local",
+        "environment": "standalone",
+        "host_group": "local_machine",
+        "os_flavor": "Host OS (Current Machine)",
+        "status": "ONLINE",
+        "latency_ms": 0.1,
+        "cpu_usage": 15.0,
+        "memory_usage": 32.0,
+        "disk_usage": 45.0,
+        "tags": "localhost,active,real-hardware",
+        "notes": "Real-time telemetry from active local machine"
+    },
+    {
         "hostname": "prac-server",
-        "display_name": "Primary Workload Host",
+        "display_name": "Primary Workload Host (Optional Remote)",
         "ip_address": "192.168.38.145",
         "ssh_port": 22,
         "ssh_username": "root",

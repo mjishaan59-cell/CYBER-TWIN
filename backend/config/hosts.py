@@ -5,17 +5,20 @@ load_dotenv(override=True)
 
 HOSTS = [
     {
-        "name": "prac-server",
-        "host": "192.168.38.145",
-        "username": os.getenv("USERNAME"),
-        "password": os.getenv("PASSWORD"),
-        "auth_method": "password",
+        "name": "localhost",
+        "display_name": "Local Host (This Computer - Live)",
+        "host": "127.0.0.1",
+        "username": "local",
+        "auth_method": "local",
+        "is_local": True,
     },
     {
-        "name": "attacker",
-        "host": "192.168.38.147",
-        "username": "soumi",
-        "key_file": "/root/.ssh/id_ed25519",
-        "auth_method": "key",
+        "name": "prac-server",
+        "display_name": "Remote Practice VM (Optional)",
+        "host": os.getenv("HOST", "192.168.38.145"),
+        "username": os.getenv("USERNAME", "root"),
+        "password": os.getenv("PASSWORD", ""),
+        "auth_method": "password",
+        "is_local": False,
     },
 ]

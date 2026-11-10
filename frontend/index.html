@@ -90,6 +90,22 @@
 
     <h1>AI Powered Cyber Digital Twin</h1>
 
+    <!-- =====================================================
+         TELEMETRY SCOPE & ENVIRONMENT ORIGIN BANNER
+    ====================================================== -->
+    <div class="twin-scope-banner" style="margin: 0 auto 24px auto; max-width: 1200px; padding: 14px 20px; background: rgba(13, 27, 42, 0.85); border: 1px solid rgba(0, 255, 204, 0.35); border-radius: 8px; display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 12px; font-size: 0.9em; box-shadow: 0 4px 14px rgba(0,0,0,0.4);">
+        <div style="display: flex; align-items: center; gap: 10px;">
+            <span style="display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: #00ffcc; box-shadow: 0 0 8px #00ffcc;"></span>
+            <strong style="color: #00ffcc; text-transform: uppercase; letter-spacing: 0.5px;">Active Sensor Scope:</strong>
+            <span style="color: #fff;">Scanning <strong>Local Host (This Computer - 127.0.0.1)</strong></span>
+        </div>
+        <div style="display: flex; gap: 16px; color: #a0aec0; font-size: 0.88em;">
+            <span>💻 <strong>Local Telemetry:</strong> Live Hardware Sensors</span>
+            <span>🛡️ <strong>Threat Intel:</strong> Abuse.ch/OTX Reference Library</span>
+            <span>🌐 <strong>Remote SSH:</strong> Standalone Mode</span>
+        </div>
+    </div>
+
 
     <!-- =====================================================
          CURRENT SYSTEM STATUS
@@ -1190,6 +1206,9 @@
     <section class="card" id="threatIntelligenceSection">
 
         <h2>AI Threat Intelligence & IOC Management</h2>
+        <p style="margin: -6px 0 16px 0; font-size: 0.88em; color: #64748b;">
+            ℹ️ <em>Global threat encyclopedia: Catalog of known adversary IOCs from public feeds (Abuse.ch, OTX, Tor). Used for cross-reference lookups, <strong>not active inbound connections to your machine</strong>.</em>
+        </p>
 
         <!-- KPI Metrics -->
         <div class="security-summary">
@@ -1435,8 +1454,9 @@
                 <button type="button" onclick="loadNetworkData()" style="padding: 7px 15px; background: #475569; color: white; border: none; border-radius: 6px; font-weight: bold; cursor: pointer;">Refresh</button>
             </div>
         </div>
-
-        <!-- Network Summary Metrics -->
+        <p style="margin: 8px 0 16px 0; font-size: 0.88em; color: #64748b;">
+            ℹ️ <em>Real-time network telemetry: Scans local listening sockets (`127.0.0.1`, `0.0.0.0`) and active interfaces on this host. Local development ports are whitelisted as safe.</em>
+        </p>
         <div class="security-summary">
             <div>
                 <span>Active Sockets</span>
