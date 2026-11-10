@@ -715,6 +715,8 @@ if (
 
     loadNetworkData();
 
+    loadFleetData();
+
     startAutoRefresh();
 
 
@@ -893,6 +895,13 @@ function startAutoRefresh() {
         setInterval(
             loadNetworkData,
             10000
+        )
+    );
+
+    refreshIntervals.push(
+        setInterval(
+            loadFleetData,
+            15000
         )
     );
 
@@ -5251,5 +5260,126 @@ async function triggerNetworkScan() {
         }
     } catch (err) {
         alert(`Error triggering network scan: ${err.message}`);
+    }
+}
+
+// ============================================================
+// PHASE 27 - MULTI-SERVER EXPANSION & FLEET MANAGEMENT
+// ============================================================
+
+let currentFleetHost = "prac-server";
+
+async function loadFleetData() {
+    try {
+        // 1. Fetch Fleet Health
+        const healthRes = await apiFetch("/multihost/fleet/health");
+        if (healthRes && healthRes.ok) {
+            const h = await healthRes.json();
+            const totEl = document.getElementById("fleetTotalServers");
+            const onEl = document.getElementById("fleetOnlineCount");
+            const offEl = document.getElementById("fleetOfflineCount");
+            const cpuEl = document.getElementById("fleetAvgCpu");
+            const memEl = document.getElementById("fleetAvgMem");
+            const latEl = document.getElementById("fleetAvgLatency");
+
+            if (totEl) totEl.textContent = h.total_servers ?? 0;
+            if (onEl) onEl.textContent = h.online_count ?? 0;
+            if (offEl) offEl.textContent = (h.offline_count + h.degraded_count) ?? 0;
+            if (cpuEl) cpuEl.textContent = `${h.average_cpu_percent ?? 0}%`;
+            if (memEl) memEl.textContent = `${h.average_memory_percent ?? 0}%`;
+            if (latEl) latEl.textContent = `${h.average_latency_ms ?? 0} ms`;
+        }
+
+        // 2. Fetch Server List
+        const serversRes = await apiFetch("/multihost/servers");
+        const table = document.getElementById("fleetServersTable");
+        const selector = document.getElementById("fleetHostSelector");
+
+        if (serversRes && serversRes.ok) {
+            const servers = await serversRes.json();
+
+            // Populate selector if needed
+            if (selector && servers && servers.length > 0) {
+                const currentVal = selector.value;
+                selector.innerHTML = "";
+                servers.forEach(s => {
+                    const opt = document.createElement("option");
+                    opt.value = s.hostname;
+                    opt.textContent = `${s.hostname} (${s.display_name})`;
+                    if (s.hostname === currentFleetHost) {
+                        opt.selected = true;
+                    }
+                    selector.appendChild(opt);
+                });
+            }
+
+            // Populate Table
+            if (table) {
+                table.innerHTML = "";
+                if (!servers || servers.length === 0) {
+                    table.innerHTML = `<tr><td colspan="10" style="text-align: center; color: #64748b;">No servers registered in fleet.</td></tr>`;
+                } else {
+                    servers.forEach(s => {
+                        const tr = document.createElement("tr");
+                        const isOnline = s.status === "ONLINE";
+                        const statusColor = isOnline ? "#16a34a" :
+                                            s.status === "DEGRADED" ? "#ea580c" : "#dc2626";
+
+                        const envBadgeColor = s.environment === "production" ? "#2563eb" :
+                                              s.environment === "dmz" ? "#dc2626" : "#475569";
+
+                        tr.innerHTML = `
+                            <td style="font-family: monospace; font-weight: bold; color: #0f172a;">${escapeHtml(s.hostname)}</td>
+                            <td>${escapeHtml(s.display_name)}</td>
+                            <td style="font-family: monospace; font-size: 12px;">${escapeHtml(s.ip_address)}:${s.ssh_port}</td>
+                            <td><span style="color: white; background: ${envBadgeColor}; padding: 2px 7px; border-radius: 4px; font-size: 11px; font-weight: bold; text-transform: uppercase;">${escapeHtml(s.environment)}</span></td>
+                            <td><span style="background: #f1f5f9; padding: 2px 6px; border-radius: 4px; font-size: 11px;">${escapeHtml(s.host_group)}</span></td>
+                            <td style="font-size: 12px;">${escapeHtml(s.os_flavor)}</td>
+                            <td><span style="color: white; background: ${statusColor}; padding: 2px 7px; border-radius: 4px; font-size: 11px; font-weight: bold;">${escapeHtml(s.status)}</span></td>
+                            <td style="font-size: 12px;">CPU: <strong>${s.cpu_usage}%</strong> / RAM: <strong>${s.memory_usage}%</strong></td>
+                            <td style="font-family: monospace; font-size: 12px;">${s.latency_ms} ms</td>
+                            <td>
+                                <button type="button" onclick="switchActiveHost('${escapeHtml(s.hostname)}')" style="padding: 3px 8px; font-size: 11px; background: #0077cc; color: white; border: none; border-radius: 4px; cursor: pointer;">Focus</button>
+                                <button type="button" onclick="pingServerDirect('${escapeHtml(s.hostname)}')" style="padding: 3px 8px; font-size: 11px; background: #0891b2; color: white; border: none; border-radius: 4px; cursor: pointer; margin-left: 4px;">Ping</button>
+                            </td>
+                        `;
+                        table.appendChild(tr);
+                    });
+                }
+            }
+        }
+    } catch (err) {
+        console.error("Error loading multi-server fleet data:", err);
+    }
+}
+
+function switchActiveHost(hostname) {
+    currentFleetHost = hostname;
+    const selector = document.getElementById("fleetHostSelector");
+    if (selector) selector.value = hostname;
+    console.log(`Switched active monitoring target to: ${hostname}`);
+    // Trigger refreshes for active host
+    loadProcessData();
+    loadNetworkData();
+}
+
+async function pingActiveServer() {
+    await pingServerDirect(currentFleetHost);
+}
+
+async function pingServerDirect(hostname) {
+    try {
+        const res = await apiFetch(`/multihost/servers/${hostname}/ping`, {
+            method: "POST"
+        });
+        if (res && res.ok) {
+            const data = await res.json();
+            alert(`Heartbeat probe to ${data.hostname}: Status=${data.status}, Latency=${data.latency_ms} ms`);
+            loadFleetData();
+        } else {
+            alert(`Failed to probe ${hostname}. Verify server permissions.`);
+        }
+    } catch (err) {
+        alert(`Error pinging server: ${err.message}`);
     }
 }

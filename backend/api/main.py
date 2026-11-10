@@ -104,6 +104,10 @@ from backend.api.network_routes import (
     router as network_router
 )
 
+from backend.api.multihost_routes import (
+    router as multihost_router
+)
+
 from backend.auth.dependencies import (
     get_current_user,
     require_roles
@@ -238,6 +242,10 @@ app.include_router(
 
 app.include_router(
     network_router
+)
+
+app.include_router(
+    multihost_router
 )
 
 # ============================================================

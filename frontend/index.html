@@ -1554,6 +1554,83 @@
     </section>
 
     <!-- =====================================================
+         PHASE 27 - MULTI-SERVER EXPANSION & FLEET MANAGEMENT
+    ====================================================== -->
+
+    <section class="card" id="multiServerFleetSection">
+
+        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+            <div>
+                <h2 style="margin: 0;">Multi-Server Fleet Management</h2>
+                <p style="margin: 4px 0 0 0; color: #64748b; font-size: 13px;">Manage distributed Linux servers, environment groups, and switch monitoring focus.</p>
+            </div>
+            <div style="display: flex; gap: 10px; align-items: center;">
+                <label for="fleetHostSelector" style="font-weight: bold; font-size: 13px;">Active Server:</label>
+                <select id="fleetHostSelector" onchange="switchActiveHost(this.value)" style="padding: 6px 12px; border-radius: 6px; border: 1px solid #cbd5e1; font-weight: bold; background: #f8fafc;">
+                    <option value="prac-server">prac-server (Primary)</option>
+                </select>
+                <button type="button" onclick="pingActiveServer()" style="padding: 7px 15px; background: #0891b2; color: white; border: none; border-radius: 6px; font-weight: bold; cursor: pointer;">Ping Host</button>
+                <button type="button" onclick="loadFleetData()" style="padding: 7px 15px; background: #475569; color: white; border: none; border-radius: 6px; font-weight: bold; cursor: pointer;">Refresh Fleet</button>
+            </div>
+        </div>
+
+        <!-- Fleet Health Metrics Summary -->
+        <div class="security-summary" style="margin-top: 15px;">
+            <div>
+                <span>Managed Servers</span>
+                <strong id="fleetTotalServers">-</strong>
+            </div>
+            <div>
+                <span>Online Nodes</span>
+                <strong id="fleetOnlineCount" style="color: #16a34a;">-</strong>
+            </div>
+            <div>
+                <span>Offline / Degraded</span>
+                <strong id="fleetOfflineCount" style="color: #dc2626;">0</strong>
+            </div>
+            <div>
+                <span>Fleet Avg CPU</span>
+                <strong id="fleetAvgCpu">-</strong>
+            </div>
+            <div>
+                <span>Fleet Avg RAM</span>
+                <strong id="fleetAvgMem">-</strong>
+            </div>
+            <div>
+                <span>Avg Link Latency</span>
+                <strong id="fleetAvgLatency">-</strong>
+            </div>
+        </div>
+
+        <!-- Managed Fleet Servers Table -->
+        <div class="table-container" style="margin-top: 15px;">
+            <h3>Distributed Server Inventory</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Hostname</th>
+                        <th>Display Name</th>
+                        <th>IP Address</th>
+                        <th>Environment</th>
+                        <th>Host Group</th>
+                        <th>OS Flavor</th>
+                        <th>Status</th>
+                        <th>Load (CPU/RAM)</th>
+                        <th>Latency</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="fleetServersTable">
+                    <tr>
+                        <td colspan="10">Loading managed fleet servers...</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+    </section>
+
+    <!-- =====================================================
          JAVASCRIPT
     ====================================================== -->
 
