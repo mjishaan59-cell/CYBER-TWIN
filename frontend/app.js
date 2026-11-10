@@ -719,6 +719,8 @@ if (
 
     loadSimulationData();
 
+    loadIncidentResponseData();
+
     startAutoRefresh();
 
 
@@ -911,6 +913,13 @@ function startAutoRefresh() {
         setInterval(
             loadSimulationData,
             20000
+        )
+    );
+
+    refreshIntervals.push(
+        setInterval(
+            loadIncidentResponseData,
+            15000
         )
     );
 
@@ -5506,4 +5515,168 @@ function displaySimulationResult(sim) {
     }
 
     if (box) box.scrollIntoView({ behavior: "smooth" });
+}
+
+// ============================================================
+// PHASE 29 - ADVANCED INCIDENT RESPONSE & PLAYBOOKS
+// ============================================================
+
+async function loadIncidentResponseData() {
+    try {
+        // 1. Fetch Stats
+        const statsRes = await apiFetch("/incident-response/stats");
+        if (statsRes && statsRes.ok) {
+            const s = await statsRes.json();
+            const totEl = document.getElementById("irTotalExecutions");
+            const sucEl = document.getElementById("irSuccessCount");
+            const blkEl = document.getElementById("irSafeguardBlocks");
+            const eviEl = document.getElementById("irEvidenceCount");
+
+            if (totEl) totEl.textContent = s.total_playbook_executions ?? 0;
+            if (sucEl) sucEl.textContent = s.successful_executions ?? 0;
+            if (blkEl) blkEl.textContent = s.blocked_by_safeguards ?? 0;
+            if (eviEl) eviEl.textContent = s.evidence_artifacts_secured ?? 0;
+        }
+
+        // 2. Fetch Playbook History
+        const histRes = await apiFetch("/incident-response/playbooks/history?limit=15");
+        const histTable = document.getElementById("playbookHistoryTable");
+        if (histRes && histRes.ok && histTable) {
+            const history = await histRes.json();
+            histTable.innerHTML = "";
+            if (!history || history.length === 0) {
+                histTable.innerHTML = `<tr><td colspan="9" style="text-align: center; color: #64748b;">No playbook execution history.</td></tr>`;
+            } else {
+                history.forEach(run => {
+                    const tr = document.createElement("tr");
+                    const isSuccess = run.status === "SUCCESS";
+                    const statusColor = isSuccess ? "#16a34a" : "#dc2626";
+                    const modeBg = run.mode === "LIVE" ? "#dc2626" : "#475569";
+                    const timeStr = run.executed_at ? new Date(run.executed_at).toLocaleTimeString() : "-";
+
+                    tr.innerHTML = `
+                        <td style="font-family: monospace; font-size: 11px; font-weight: bold; color: #2563eb;">${escapeHtml(run.execution_id)}</td>
+                        <td style="font-weight: 500;">${escapeHtml(run.playbook_name)}</td>
+                        <td style="font-family: monospace;">${escapeHtml(run.target_hostname)}</td>
+                        <td><span style="color: white; background: ${modeBg}; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: bold;">${escapeHtml(run.mode)}</span></td>
+                        <td><span style="color: ${run.safeguards_passed ? '#16a34a' : '#dc2626'}; font-size: 12px; font-weight: bold;">${run.safeguards_passed ? '✓ Passed' : '⚠ Blocked'}</span></td>
+                        <td><span style="color: white; background: ${statusColor}; padding: 2px 7px; border-radius: 4px; font-size: 11px; font-weight: bold;">${escapeHtml(run.status)}</span></td>
+                        <td style="font-size: 12px;">${escapeHtml(run.executed_by)}</td>
+                        <td style="font-size: 12px; color: #334155;">${escapeHtml(run.result_summary || "-")}</td>
+                        <td style="font-size: 11px; color: #64748b;">${escapeHtml(timeStr)}</td>
+                    `;
+                    histTable.appendChild(tr);
+                });
+            }
+        }
+
+        // 3. Fetch Timeline for inc-2026-001
+        const timeRes = await apiFetch("/incident-response/timeline/inc-2026-001");
+        const timeTable = document.getElementById("incidentTimelineTable");
+        if (timeRes && timeRes.ok && timeTable) {
+            const events = await timeRes.json();
+            timeTable.innerHTML = "";
+            if (!events || events.length === 0) {
+                timeTable.innerHTML = `<tr><td colspan="5" style="text-align: center; color: #64748b;">No timeline events recorded.</td></tr>`;
+            } else {
+                events.forEach(ev => {
+                    const tr = document.createElement("tr");
+                    const sevColor = ev.severity === "CRITICAL" ? "#dc2626" :
+                                     ev.severity === "HIGH" ? "#ea580c" : "#2563eb";
+                    const tStr = ev.event_timestamp ? new Date(ev.event_timestamp).toLocaleTimeString() : "-";
+
+                    tr.innerHTML = `
+                        <td style="font-size: 11px; color: #64748b;">${escapeHtml(tStr)}</td>
+                        <td><span style="font-size: 11px; background: #f1f5f9; padding: 2px 5px; border-radius: 3px; font-weight: 500;">${escapeHtml(ev.event_type)}</span></td>
+                        <td style="font-weight: 500;">${escapeHtml(ev.title)}</td>
+                        <td><span style="color: ${sevColor}; font-weight: bold; font-size: 11px;">${escapeHtml(ev.severity)}</span></td>
+                        <td style="font-size: 12px; color: #475569;">${escapeHtml(ev.details || "-")}</td>
+                    `;
+                    timeTable.appendChild(tr);
+                });
+            }
+        }
+
+        // 4. Fetch Evidence for inc-2026-001
+        const eviRes = await apiFetch("/incident-response/evidence/inc-2026-001");
+        const eviTable = document.getElementById("incidentEvidenceTable");
+        if (eviRes && eviRes.ok && eviTable) {
+            const artifacts = await eviRes.json();
+            eviTable.innerHTML = "";
+            if (!artifacts || artifacts.length === 0) {
+                eviTable.innerHTML = `<tr><td colspan="5" style="text-align: center; color: #64748b;">No evidence artifacts attached.</td></tr>`;
+            } else {
+                artifacts.forEach(art => {
+                    const tr = document.createElement("tr");
+                    const hashShort = art.file_hash_sha256 ? `${art.file_hash_sha256.substring(0, 12)}...` : "-";
+
+                    tr.innerHTML = `
+                        <td style="font-family: monospace; font-size: 11px; font-weight: bold;">${escapeHtml(art.artifact_id)}</td>
+                        <td><span style="background: #f1f5f9; padding: 2px 6px; border-radius: 4px; font-size: 11px;">${escapeHtml(art.artifact_type)}</span></td>
+                        <td style="font-family: monospace; font-weight: 500;">${escapeHtml(art.file_name)}</td>
+                        <td style="font-family: monospace; font-size: 11px; color: #64748b;">${escapeHtml(hashShort)}</td>
+                        <td style="font-size: 12px;">${escapeHtml(art.collected_by)}</td>
+                    `;
+                    eviTable.appendChild(tr);
+                });
+            }
+        }
+
+    } catch (err) {
+        console.error("Error loading incident response data:", err);
+    }
+}
+
+async function triggerPlaybookExecution() {
+    const pbSelector = document.getElementById("playbookSelector");
+    const modeSelector = document.getElementById("playbookModeSelector");
+    const paramInput = document.getElementById("playbookParamInput");
+
+    const pbId = pbSelector ? pbSelector.value : "BLOCK_MALICIOUS_IP";
+    const mode = modeSelector ? modeSelector.value : "DRY_RUN";
+    const paramVal = paramInput ? paramInput.value.trim() : "";
+    const targetHost = currentFleetHost || "prac-server";
+
+    // Map parameters based on playbook
+    const params = {};
+    if (pbId === "BLOCK_MALICIOUS_IP") {
+        params.ip_address = paramVal || "198.51.100.2";
+    } else if (pbId === "ISOLATE_HOST_VLAN") {
+        params.target_hostname = targetHost;
+        params.confirm_isolation = true;
+    } else if (pbId === "KILL_ROGUE_PROCESS") {
+        const parts = paramVal.split(" ");
+        params.pid = parseInt(parts[0]) || 9999;
+        params.process_name = parts[1] || "xmrig";
+    } else if (pbId === "RESTORE_FIM_FILE") {
+        params.file_path = paramVal || "/etc/sudoers";
+    } else if (pbId === "RESET_COMPROMISED_CREDENTIALS") {
+        params.username = paramVal || "compromised_user";
+    } else if (pbId === "RESTART_FAILED_SERVICE") {
+        params.service_name = paramVal || "sshd.service";
+    }
+
+    try {
+        const res = await apiFetch("/incident-response/playbooks/execute", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                playbook_id: pbId,
+                target_hostname: targetHost,
+                incident_id: "inc-2026-001",
+                mode: mode,
+                parameters: params
+            })
+        });
+
+        if (res && res.ok) {
+            const data = await res.json();
+            alert(`Playbook Execution: Status=${data.status}\nSafeguards Passed: ${data.safeguards_passed}\nSummary: ${data.result_summary}`);
+            loadIncidentResponseData();
+        } else {
+            alert("Playbook execution failed. Verify analyst/admin privileges.");
+        }
+    } catch (err) {
+        alert(`Error executing playbook: ${err.message}`);
+    }
 }

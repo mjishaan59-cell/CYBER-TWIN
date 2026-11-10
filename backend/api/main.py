@@ -112,6 +112,10 @@ from backend.api.simulation_routes import (
     router as simulation_router
 )
 
+from backend.api.playbook_routes import (
+    router as playbook_router
+)
+
 from backend.auth.dependencies import (
     get_current_user,
     require_roles
@@ -254,6 +258,10 @@ app.include_router(
 
 app.include_router(
     simulation_router
+)
+
+app.include_router(
+    playbook_router
 )
 
 # ============================================================

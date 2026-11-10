@@ -1722,6 +1722,128 @@
     </section>
 
     <!-- =====================================================
+         PHASE 29 - ADVANCED INCIDENT RESPONSE & PLAYBOOKS
+    ====================================================== -->
+
+    <section class="card" id="incidentResponseSection">
+
+        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+            <div>
+                <h2 style="margin: 0;">Incident Response Playbooks & Forensics</h2>
+                <p style="margin: 4px 0 0 0; color: #64748b; font-size: 13px;">Execute automated containment playbooks with guardrails, inspect forensics timelines, and manage evidence.</p>
+            </div>
+            <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+                <select id="playbookSelector" style="padding: 6px 10px; border-radius: 6px; border: 1px solid #cbd5e1; font-weight: bold; background: #f8fafc;">
+                    <option value="BLOCK_MALICIOUS_IP">Block Malicious IP (iptables)</option>
+                    <option value="ISOLATE_HOST_VLAN">Isolate Host (Quarantine VLAN)</option>
+                    <option value="KILL_ROGUE_PROCESS">Kill Rogue Process (SIGTERM/9)</option>
+                    <option value="RESTORE_FIM_FILE">Restore Tampered FIM File</option>
+                    <option value="RESET_COMPROMISED_CREDENTIALS">Reset Compromised Credentials</option>
+                    <option value="RESTART_FAILED_SERVICE">Restart Failed Systemd Service</option>
+                </select>
+                <select id="playbookModeSelector" style="padding: 6px 10px; border-radius: 6px; border: 1px solid #cbd5e1; font-weight: bold; background: #f8fafc;">
+                    <option value="DRY_RUN">Mode: DRY-RUN</option>
+                    <option value="LIVE">Mode: LIVE</option>
+                </select>
+                <input type="text" id="playbookParamInput" placeholder="Target (IP / PID / File)" style="padding: 6px 10px; border-radius: 6px; border: 1px solid #cbd5e1; width: 160px; font-size: 12px;" />
+                <button type="button" onclick="triggerPlaybookExecution()" style="padding: 7px 15px; background: #0077cc; color: white; border: none; border-radius: 6px; font-weight: bold; cursor: pointer;">Execute</button>
+                <button type="button" onclick="loadIncidentResponseData()" style="padding: 7px 15px; background: #475569; color: white; border: none; border-radius: 6px; font-weight: bold; cursor: pointer;">Refresh</button>
+            </div>
+        </div>
+
+        <!-- Incident Response Summary Metrics -->
+        <div class="security-summary" style="margin-top: 15px;">
+            <div>
+                <span>Playbook Executions</span>
+                <strong id="irTotalExecutions">-</strong>
+            </div>
+            <div>
+                <span>Successful Remediations</span>
+                <strong id="irSuccessCount" style="color: #16a34a;">-</strong>
+            </div>
+            <div>
+                <span>Safeguard Interceptions</span>
+                <strong id="irSafeguardBlocks" style="color: #ea580c;">-</strong>
+            </div>
+            <div>
+                <span>Evidence Artifacts</span>
+                <strong id="irEvidenceCount">-</strong>
+            </div>
+        </div>
+
+        <!-- Playbook Audit History Table -->
+        <div class="table-container" style="margin-top: 15px;">
+            <h3>Playbook Remediation Audit History</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Execution ID</th>
+                        <th>Playbook</th>
+                        <th>Target Host</th>
+                        <th>Mode</th>
+                        <th>Safeguards</th>
+                        <th>Status</th>
+                        <th>Operator</th>
+                        <th>Summary / Result</th>
+                        <th>Executed At</th>
+                    </tr>
+                </thead>
+                <tbody id="playbookHistoryTable">
+                    <tr>
+                        <td colspan="9">Loading playbook execution history...</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Forensics Timeline & Evidence Locker -->
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 20px;">
+            <!-- Timeline -->
+            <div class="table-container">
+                <h3>Incident Forensics Timeline (inc-2026-001)</h3>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Time</th>
+                            <th>Type</th>
+                            <th>Event Title</th>
+                            <th>Severity</th>
+                            <th>Details</th>
+                        </tr>
+                    </thead>
+                    <tbody id="incidentTimelineTable">
+                        <tr>
+                            <td colspan="5">Loading timeline events...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Evidence Locker -->
+            <div class="table-container">
+                <h3>Secured Evidence Artifacts Locker</h3>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Artifact ID</th>
+                            <th>Type</th>
+                            <th>File Name</th>
+                            <th>SHA-256 Hash</th>
+                            <th>Collector</th>
+                        </tr>
+                    </thead>
+                    <tbody id="incidentEvidenceTable">
+                        <tr>
+                            <td colspan="5">Loading evidence artifacts...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+    </section>
+
+    <!-- =====================================================
          JAVASCRIPT
     ====================================================== -->
 
