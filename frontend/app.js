@@ -717,6 +717,8 @@ if (
 
     loadFleetData();
 
+    loadSimulationData();
+
     startAutoRefresh();
 
 
@@ -902,6 +904,13 @@ function startAutoRefresh() {
         setInterval(
             loadFleetData,
             15000
+        )
+    );
+
+    refreshIntervals.push(
+        setInterval(
+            loadSimulationData,
+            20000
         )
     );
 
@@ -5382,4 +5391,119 @@ async function pingServerDirect(hostname) {
     } catch (err) {
         alert(`Error pinging server: ${err.message}`);
     }
+}
+
+// ============================================================
+// PHASE 28 - WHAT-IF ATTACK SIMULATION
+// ============================================================
+
+async function loadSimulationData() {
+    try {
+        // 1. Fetch Stats
+        const statsRes = await apiFetch("/simulation/stats");
+        if (statsRes && statsRes.ok) {
+            const s = await statsRes.json();
+            const totEl = document.getElementById("simTotalCount");
+            const critEl = document.getElementById("simCriticalCount");
+            const riskEl = document.getElementById("simAvgRisk");
+            const contEl = document.getElementById("simAvgContainment");
+
+            if (totEl) totEl.textContent = s.total_simulations_conducted ?? 0;
+            if (critEl) critEl.textContent = s.critical_scenario_runs ?? 0;
+            if (riskEl) riskEl.textContent = `${s.average_risk_score ?? 0} / 100`;
+            if (contEl) contEl.textContent = `${s.average_containment_rate ?? 0}%`;
+        }
+
+        // 2. Fetch History
+        const histRes = await apiFetch("/simulation/history?limit=15");
+        const table = document.getElementById("simHistoryTable");
+        if (histRes && histRes.ok && table) {
+            const history = await histRes.json();
+            table.innerHTML = "";
+            if (!history || history.length === 0) {
+                table.innerHTML = `<tr><td colspan="9" style="text-align: center; color: #64748b;">No simulation exercises recorded.</td></tr>`;
+            } else {
+                history.forEach(sim => {
+                    const tr = document.createElement("tr");
+                    const riskColor = sim.risk_score >= 85 ? "#dc2626" :
+                                      sim.risk_score >= 60 ? "#ea580c" : "#16a34a";
+
+                    tr.innerHTML = `
+                        <td style="font-family: monospace; font-size: 11px; font-weight: bold; color: #2563eb;">${escapeHtml(sim.simulation_id)}</td>
+                        <td style="font-weight: 500;">${escapeHtml(sim.scenario_name)}</td>
+                        <td style="font-family: monospace;">${escapeHtml(sim.target_hostname)}</td>
+                        <td><span style="font-family: monospace; font-size: 11px; background: #f1f5f9; padding: 2px 6px; border-radius: 4px;">${escapeHtml(sim.mitre_technique)}</span></td>
+                        <td><span style="font-size: 12px; color: #475569;">${escapeHtml(sim.tactics)}</span></td>
+                        <td style="font-size: 12px;">${escapeHtml(sim.simulated_by)}</td>
+                        <td><strong style="color: ${riskColor};">${sim.risk_score}</strong></td>
+                        <td><span style="color: #16a34a; font-weight: bold;">${sim.predicted_containment_probability}%</span></td>
+                        <td><span style="color: white; background: #16a34a; padding: 2px 7px; border-radius: 4px; font-size: 11px; font-weight: bold;">${escapeHtml(sim.status)}</span></td>
+                    `;
+                    table.appendChild(tr);
+                });
+            }
+        }
+    } catch (err) {
+        console.error("Error loading attack simulation data:", err);
+    }
+}
+
+async function triggerSimulationRun() {
+    const scenarioSelector = document.getElementById("simScenarioSelector");
+    const scenarioId = scenarioSelector ? scenarioSelector.value : "SSH_BRUTE_FORCE";
+    const targetHost = currentFleetHost || "prac-server";
+
+    try {
+        const res = await apiFetch("/simulation/run", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                scenario_id: scenarioId,
+                target_hostname: targetHost
+            })
+        });
+
+        if (res && res.ok) {
+            const data = await res.json();
+            displaySimulationResult(data);
+            loadSimulationData();
+        } else {
+            alert("Simulation failed to execute. Verify admin/analyst privileges.");
+        }
+    } catch (err) {
+        alert(`Error executing simulation: ${err.message}`);
+    }
+}
+
+function displaySimulationResult(sim) {
+    const box = document.getElementById("simResultBox");
+    const title = document.getElementById("simResTitle");
+    const badge = document.getElementById("simResRiskBadge");
+    const summary = document.getElementById("simResSummary");
+    const mttd = document.getElementById("simResMttd");
+    const mttr = document.getElementById("simResMttr");
+    const prob = document.getElementById("simResProb");
+    const recsList = document.getElementById("simResRecs");
+
+    if (box) box.style.display = "block";
+    if (title) title.textContent = `Simulation: ${sim.scenario_name} (Target: ${sim.target_hostname})`;
+    if (badge) {
+        badge.textContent = `Risk: ${sim.risk_score} (${sim.impact_level})`;
+        badge.style.background = sim.risk_score >= 80 ? "#dc2626" : "#ea580c";
+    }
+    if (summary) summary.textContent = sim.impact_summary;
+    if (mttd) mttd.textContent = `${sim.estimated_mttd_seconds} seconds`;
+    if (mttr) mttr.textContent = `${sim.estimated_mttr_seconds} seconds`;
+    if (prob) prob.textContent = `${sim.predicted_containment_probability}%`;
+
+    if (recsList) {
+        recsList.innerHTML = "";
+        (sim.defensive_recommendations || []).forEach(r => {
+            const li = document.createElement("li");
+            li.textContent = r;
+            recsList.appendChild(li);
+        });
+    }
+
+    if (box) box.scrollIntoView({ behavior: "smooth" });
 }

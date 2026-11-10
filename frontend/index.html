@@ -1631,6 +1631,97 @@
     </section>
 
     <!-- =====================================================
+         PHASE 28 - WHAT-IF ATTACK SIMULATION
+    ====================================================== -->
+
+    <section class="card" id="attackSimulationSection">
+
+        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+            <div>
+                <h2 style="margin: 0;">Safe What-If Attack Simulation</h2>
+                <p style="margin: 4px 0 0 0; color: #64748b; font-size: 13px;">Execute controlled synthetic adversary campaigns to predict breach impact and measure defense readiness.</p>
+            </div>
+            <div style="display: flex; gap: 10px; align-items: center;">
+                <label for="simScenarioSelector" style="font-weight: bold; font-size: 13px;">Scenario:</label>
+                <select id="simScenarioSelector" style="padding: 6px 10px; border-radius: 6px; border: 1px solid #cbd5e1; font-weight: bold; background: #f8fafc;">
+                    <option value="SSH_BRUTE_FORCE">SSH Brute Force (T1110.001)</option>
+                    <option value="REVERSE_SHELL_INJECTION">Reverse Shell Injection (T1059.004)</option>
+                    <option value="PRIVILEGE_ESCALATION_SUID">SUID Privilege Escalation (T1548.001)</option>
+                    <option value="DATA_EXFILTRATION_DNS">DNS Data Exfiltration (T1048.003)</option>
+                    <option value="RANSOMWARE_BURST">Ransomware Burst Encryption (T1486)</option>
+                    <option value="RESOURCE_DOS_ATTACK">Resource Exhaustion DoS (T1499.001)</option>
+                </select>
+                <button type="button" onclick="triggerSimulationRun()" style="padding: 7px 15px; background: #dc2626; color: white; border: none; border-radius: 6px; font-weight: bold; cursor: pointer;">Launch Simulation</button>
+                <button type="button" onclick="loadSimulationData()" style="padding: 7px 15px; background: #475569; color: white; border: none; border-radius: 6px; font-weight: bold; cursor: pointer;">Refresh</button>
+            </div>
+        </div>
+
+        <!-- Simulation Summary Metrics -->
+        <div class="security-summary" style="margin-top: 15px;">
+            <div>
+                <span>Total Exercises</span>
+                <strong id="simTotalCount">-</strong>
+            </div>
+            <div>
+                <span>Critical Tests</span>
+                <strong id="simCriticalCount" style="color: #dc2626;">-</strong>
+            </div>
+            <div>
+                <span>Avg Predicted Risk</span>
+                <strong id="simAvgRisk">-</strong>
+            </div>
+            <div>
+                <span>Containment Rate</span>
+                <strong id="simAvgContainment" style="color: #16a34a;">-</strong>
+            </div>
+        </div>
+
+        <!-- Active / Latest Simulation Result Card -->
+        <div id="simResultBox" style="display: none; margin-top: 15px; padding: 15px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px;">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <h3 id="simResTitle" style="margin: 0; color: #0f172a;">Simulation Result</h3>
+                <span id="simResRiskBadge" style="padding: 3px 8px; border-radius: 4px; font-weight: bold; font-size: 12px; color: white; background: #dc2626;">CRITICAL</span>
+            </div>
+            <p id="simResSummary" style="margin: 8px 0; font-size: 13px; color: #334155;">-</p>
+            <div style="display: flex; gap: 20px; font-size: 12px; color: #475569; margin: 10px 0;">
+                <div>Estimated MTTD: <strong id="simResMttd" style="color: #0f172a;">-</strong></div>
+                <div>Estimated MTTR: <strong id="simResMttr" style="color: #0f172a;">-</strong></div>
+                <div>Containment Probability: <strong id="simResProb" style="color: #16a34a;">-</strong></div>
+            </div>
+            <div>
+                <strong style="font-size: 12px; color: #0f172a;">Prescriptive Hardening Recommendations:</strong>
+                <ul id="simResRecs" style="margin: 5px 0 0 20px; font-size: 12px; color: #475569;"></ul>
+            </div>
+        </div>
+
+        <!-- Historical Exercises Table -->
+        <div class="table-container" style="margin-top: 15px;">
+            <h3>Simulation Exercise History & Audit Trail</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Simulation ID</th>
+                        <th>Scenario Name</th>
+                        <th>Target Host</th>
+                        <th>MITRE Technique</th>
+                        <th>Tactics</th>
+                        <th>Simulated By</th>
+                        <th>Predicted Risk</th>
+                        <th>Containment %</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody id="simHistoryTable">
+                    <tr>
+                        <td colspan="9">Loading attack simulation history...</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+    </section>
+
+    <!-- =====================================================
          JAVASCRIPT
     ====================================================== -->
 
