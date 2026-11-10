@@ -1250,6 +1250,65 @@
     </section>
 
     <!-- =====================================================
+         PHASE 24 - FILE INTEGRITY MONITORING (FIM)
+    ====================================================== -->
+
+    <section class="card" id="fimSection">
+
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+            <h2 style="margin: 0;">File Integrity Monitoring (FIM)</h2>
+            <div style="display: flex; gap: 10px;">
+                <button type="button" onclick="triggerFimScan()" style="padding: 7px 15px; background: #0077cc; color: white; border: none; border-radius: 6px; font-weight: bold; cursor: pointer;">Scan Integrity Now</button>
+                <button type="button" onclick="loadFimData()" style="padding: 7px 15px; background: #475569; color: white; border: none; border-radius: 6px; font-weight: bold; cursor: pointer;">Refresh</button>
+            </div>
+        </div>
+
+        <!-- FIM Metrics Summary -->
+        <div class="security-summary">
+            <div>
+                <span>Monitored Files</span>
+                <strong id="fimBaselinedCount">-</strong>
+            </div>
+            <div>
+                <span>Total Violations</span>
+                <strong id="fimViolationCount">-</strong>
+            </div>
+            <div>
+                <span>Critical Alerts</span>
+                <strong id="fimCriticalCount">-</strong>
+            </div>
+            <div>
+                <span>Baseline Health</span>
+                <strong id="fimBaselineHealth" style="color: #16a34a;">SEALED</strong>
+            </div>
+        </div>
+
+        <!-- FIM Events Table -->
+        <div class="table-container" style="margin-top: 15px;">
+            <h3>Integrity Violation Events</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Detected At</th>
+                        <th>Host</th>
+                        <th>File Path</th>
+                        <th>Change Type</th>
+                        <th>Severity</th>
+                        <th>Hash / Perm Change</th>
+                        <th>Details</th>
+                    </tr>
+                </thead>
+                <tbody id="fimEventsTable">
+                    <tr>
+                        <td colspan="7">Loading file integrity monitoring events...</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+    </section>
+
+    <!-- =====================================================
          JAVASCRIPT
     ====================================================== -->
 

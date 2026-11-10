@@ -92,6 +92,10 @@ from backend.api.predictive_routes import (
     router as predictive_router
 )
 
+from backend.api.fim_routes import (
+    router as fim_router
+)
+
 from backend.auth.dependencies import (
     get_current_user,
     require_roles
@@ -214,6 +218,10 @@ app.include_router(
 
 app.include_router(
     predictive_router
+)
+
+app.include_router(
+    fim_router
 )
 
 # ============================================================

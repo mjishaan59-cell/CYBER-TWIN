@@ -709,6 +709,8 @@ if (
 
     loadPredictiveAnalytics();
 
+    loadFimData();
+
     startAutoRefresh();
 
 
@@ -865,6 +867,13 @@ function startAutoRefresh() {
     refreshIntervals.push(
         setInterval(
             loadPredictiveAnalytics,
+            10000
+        )
+    );
+
+    refreshIntervals.push(
+        setInterval(
+            loadFimData,
             10000
         )
     );
@@ -4801,4 +4810,110 @@ function renderPredictiveChart(cpuForecast, memForecast) {
             }
         }
     });
+}
+
+// ============================================================
+// PHASE 24: FILE INTEGRITY MONITORING (FIM) DASHBOARD
+// ============================================================
+
+async function loadFimData() {
+    try {
+        // 1. Load FIM Stats
+        const statsRes = await apiFetch("/fim/stats?hostname=prac-server");
+        if (statsRes && statsRes.ok) {
+            const stats = await statsRes.json();
+            const baseCountEl = document.getElementById("fimBaselinedCount");
+            const violCountEl = document.getElementById("fimViolationCount");
+            const critCountEl = document.getElementById("fimCriticalCount");
+            const healthEl = document.getElementById("fimBaselineHealth");
+
+            if (baseCountEl) baseCountEl.textContent = stats.monitored_files_count ?? 0;
+            if (violCountEl) violCountEl.textContent = stats.total_integrity_events ?? 0;
+            if (critCountEl) critCountEl.textContent = stats.critical_events_count ?? 0;
+            if (healthEl) {
+                if (stats.baseline_healthy) {
+                    healthEl.textContent = "VERIFIED";
+                    healthEl.style.color = "#16a34a";
+                } else {
+                    healthEl.textContent = "INTEGRITY BREACH";
+                    healthEl.style.color = "#dc2626";
+                }
+            }
+        }
+
+        // 2. Load Events Table
+        const eventsRes = await apiFetch("/fim/events?limit=25");
+        const tbody = document.getElementById("fimEventsTable");
+        if (!tbody) return;
+
+        if (eventsRes && eventsRes.ok) {
+            const events = await eventsRes.json();
+            tbody.textContent = "";
+
+            if (!events || events.length === 0) {
+                const tr = document.createElement("tr");
+                const td = document.createElement("td");
+                td.colSpan = 7;
+                td.textContent = "No integrity violation events detected. Monitored baselines intact.";
+                tr.appendChild(td);
+                tbody.appendChild(tr);
+                return;
+            }
+
+            events.forEach(ev => {
+                const tr = document.createElement("tr");
+
+                const sevColor = ev.severity === "CRITICAL" ? "#dc2626" :
+                                 ev.severity === "HIGH" ? "#ea580c" :
+                                 ev.severity === "MEDIUM" ? "#d97706" : "#16a34a";
+
+                const typeColor = ev.change_type === "DELETED" ? "#dc2626" :
+                                  ev.change_type === "MODIFIED" ? "#ea580c" :
+                                  ev.change_type === "CREATED" ? "#2563eb" : "#7c3aed";
+
+                const timeStr = ev.detected_at ? new Date(ev.detected_at).toLocaleString() : "-";
+
+                let diffText = "-";
+                if (ev.change_type === "MODIFIED") {
+                    diffText = `Hash: ${ev.old_sha256 ? ev.old_sha256.substring(0, 8) : 'none'} → ${ev.new_sha256 ? ev.new_sha256.substring(0, 8) : 'none'}`;
+                } else if (ev.change_type === "PERMISSION_CHANGED") {
+                    diffText = `Perm: ${ev.old_permissions || '-'} → ${ev.new_permissions || '-'}`;
+                } else if (ev.change_type === "OWNERSHIP_CHANGED") {
+                    diffText = `Owner: ${ev.old_owner || '-'} → ${ev.new_owner || '-'}`;
+                }
+
+                tr.innerHTML = `
+                    <td style="font-size: 12px; color: #64748b;">${escapeHtml(timeStr)}</td>
+                    <td style="font-weight: 500;">${escapeHtml(ev.hostname || "prac-server")}</td>
+                    <td style="font-family: monospace; font-weight: bold; color: #1e293b;">${escapeHtml(ev.file_path)}</td>
+                    <td><span style="color: white; background: ${typeColor}; padding: 2px 7px; border-radius: 4px; font-size: 11px; font-weight: bold;">${escapeHtml(ev.change_type)}</span></td>
+                    <td><span style="color: white; background: ${sevColor}; padding: 2px 7px; border-radius: 4px; font-size: 11px; font-weight: bold;">${escapeHtml(ev.severity)}</span></td>
+                    <td style="font-family: monospace; font-size: 12px;">${escapeHtml(diffText)}</td>
+                    <td style="font-size: 12px; color: #475569;">${escapeHtml(ev.details || "-")}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+    } catch (err) {
+        console.error("Error loading FIM data:", err);
+    }
+}
+
+async function triggerFimScan() {
+    try {
+        const res = await apiFetch("/fim/scan", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ hostname: "prac-server" })
+        });
+        if (res && res.ok) {
+            const data = await res.json();
+            alert(`Integrity scan completed. Scanned ${data.scanned_files_count} files, detected ${data.violations_detected} violations.`);
+            loadFimData();
+        } else {
+            alert("Scan failed. Verify analyst or admin privileges.");
+        }
+    } catch (err) {
+        alert(`Error triggering scan: ${err.message}`);
+    }
 }
