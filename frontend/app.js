@@ -1,7 +1,8 @@
 // ============================================================
-// AUTHENTICATION
+// AUTHENTICATION & GLOBAL CONFIG
 // ============================================================
 
+const API = "/api";
 const TOKEN_KEY = "cyber_digital_twin_access_token";
 
 const ROLE_KEY =
@@ -1010,8 +1011,6 @@ if (
 );
 
 console.log("=== CYBER DIGITAL TWIN APP.JS LOADED ===");
-
-const API = "/api";
 
 function switchSocTab(tabId) {
     const tabMap = {

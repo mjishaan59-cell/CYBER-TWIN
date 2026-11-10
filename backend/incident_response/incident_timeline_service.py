@@ -8,7 +8,7 @@ import json
 from typing import List, Dict, Any, Optional
 from datetime import datetime, timezone
 from sqlalchemy import text
-from backend.database import engine
+from backend.database import engine, is_database_online
 from backend.incident_response.playbook_engine import PlaybookEngine, PLAYBOOK_CATALOG
 
 
@@ -21,7 +21,8 @@ class IncidentTimelineService:
         self._playbook_history: Dict[str, Dict[str, Any]] = {}
         self._evidence_artifacts: List[Dict[str, Any]] = []
         self._timeline_events: List[Dict[str, Any]] = []
-        self._ensure_tables()
+        if is_database_online():
+            self._ensure_tables()
         self._seed_data()
 
     def _ensure_tables(self):

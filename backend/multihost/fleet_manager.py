@@ -9,7 +9,7 @@ import time
 from typing import Dict, Any, List, Optional
 from datetime import datetime, timezone
 from sqlalchemy import text
-from backend.database import engine
+from backend.database import engine, is_database_online
 
 SEED_SERVERS = [
     {
@@ -132,7 +132,8 @@ class FleetManager:
     def __init__(self):
         self._servers: Dict[str, Dict[str, Any]] = {}
         self._heartbeats: List[Dict[str, Any]] = []
-        self._ensure_tables()
+        if is_database_online():
+            self._ensure_tables()
         self._seed_fleet()
 
     def _ensure_tables(self):

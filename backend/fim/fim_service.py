@@ -7,7 +7,7 @@ Manages baselines, verification scans, tamper seal validation, and event storage
 from typing import List, Dict, Any, Optional
 from datetime import datetime, timezone
 from sqlalchemy import text
-from backend.database import engine
+from backend.database import engine, is_database_online
 from backend.fim.fim_config import CRITICAL_LINUX_PATHS, get_default_monitored_paths
 from backend.fim.fim_engine import (
     calculate_sha256,
@@ -72,7 +72,8 @@ class FimService:
     def __init__(self):
         self._memory_baselines: Dict[str, List[Dict[str, Any]]] = {}
         self._memory_events: List[Dict[str, Any]] = []
-        self._ensure_tables()
+        if is_database_online():
+            self._ensure_tables()
         self._init_seed_baseline("prac-server")
 
     def _ensure_tables(self):

@@ -7,7 +7,7 @@ import psutil
 from typing import List, Dict, Any, Optional
 from datetime import datetime, timezone
 from sqlalchemy import text
-from backend.database import engine
+from backend.database import engine, is_database_online
 from backend.process_monitoring.process_analyzer import ProcessAnalyzer
 
 DEFAULT_SYSTEMD_SERVICES = [
@@ -41,7 +41,8 @@ class ProcessMonitoringService:
         self._memory_processes: Dict[str, List[Dict[str, Any]]] = {}
         self._memory_services: Dict[str, List[Dict[str, Any]]] = {}
         self._memory_alerts: List[Dict[str, Any]] = []
-        self._ensure_tables()
+        if is_database_online():
+            self._ensure_tables()
         self._init_defaults("prac-server")
 
     def _ensure_tables(self):

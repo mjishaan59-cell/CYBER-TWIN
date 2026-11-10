@@ -359,7 +359,7 @@ app.add_middleware(
 @app.get("/")
 def home(request: Request):
     accept = request.headers.get("accept", "")
-    if "application/json" in accept and "text/html" not in accept:
+    if accept == "application/json" or request.query_params.get("format") == "json":
         return {
             "message": "Welcome to AI Powered Cyber Digital Twin",
             "status": "online",
@@ -369,7 +369,12 @@ def home(request: Request):
     index_file = FRONTEND_DIR / "index.html"
     if index_file.exists():
         return FileResponse(index_file, media_type="text/html")
-    return {"message": "Welcome to AI Powered Cyber Digital Twin"}
+    return {
+        "message": "Welcome to AI Powered Cyber Digital Twin",
+        "status": "online",
+        "docs": "/docs",
+        "dashboard": "/"
+    }
 
 
 @app.get("/index.html")

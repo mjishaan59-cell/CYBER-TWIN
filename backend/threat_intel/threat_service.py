@@ -7,7 +7,7 @@ Manages IOC persistence, querying, audit logging, feed synchronization, and stat
 from typing import List, Dict, Any, Optional
 from datetime import datetime, timezone
 from sqlalchemy import text
-from backend.database import engine
+from backend.database import engine, is_database_online
 from backend.threat_intel.feed_collector import (
     ThreatFeedCollector,
     detect_indicator_type,
@@ -26,8 +26,9 @@ class ThreatIntelligenceService:
     def __init__(self):
         self.collector = ThreatFeedCollector()
         self.correlator = ThreatCorrelator(self.lookup_indicator_dict)
-        self._ensure_tables()
-        self._seed_if_empty()
+        if is_database_online():
+            self._ensure_tables()
+            self._seed_if_empty()
 
     def _ensure_tables(self):
         """Ensure threat intelligence tables exist in the active database."""

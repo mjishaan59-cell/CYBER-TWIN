@@ -8,7 +8,7 @@ import json
 from typing import List, Dict, Any, Optional
 from datetime import datetime, timezone
 from sqlalchemy import text
-from backend.database import engine
+from backend.database import engine, is_database_online
 from backend.simulation.simulation_engine import SimulationEngine, SCENARIO_CATALOG
 
 
@@ -19,7 +19,8 @@ class SimulationService:
 
     def __init__(self):
         self._history: Dict[str, Dict[str, Any]] = {}
-        self._ensure_tables()
+        if is_database_online():
+            self._ensure_tables()
         self._seed_history()
 
     def _ensure_tables(self):
