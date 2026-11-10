@@ -30,9 +30,12 @@ import shutil
 import psutil
 
 from datetime import datetime, timedelta
+from pathlib import Path
 from backend.config.hosts import HOSTS
 
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, HTTPException, Query, Request
+from fastapi.responses import FileResponse, JSONResponse
+from fastapi.staticfiles import StaticFiles
 
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
@@ -128,6 +131,9 @@ app = FastAPI(
     version="1.0"
 )
 
+WORKSPACE_ROOT = Path(__file__).resolve().parent.parent.parent
+FRONTEND_DIR = WORKSPACE_ROOT / "frontend"
+
 class SecurityResponseExecutionRequest(BaseModel):
 
     reason: str = Field(
@@ -194,9 +200,12 @@ security_logger = get_security_logger()
 logger.info("Cyber Digital Twin API initialized")
 
 @app.middleware("http")
-async def log_api_requests(request, call_next):
-    start_time = time.perf_counter()
+async def log_and_rewrite_api_requests(request: Request, call_next):
+    raw_path = request.scope.get("path", "")
+    if raw_path.startswith("/api/"):
+        request.scope["path"] = raw_path[4:]  # Transparently route /api/foo to /foo
 
+    start_time = time.perf_counter()
     try:
         response = await call_next(request)
         duration_ms = (time.perf_counter() - start_time) * 1000
@@ -204,7 +213,7 @@ async def log_api_requests(request, call_next):
         logger.info(
             "HTTP %s %s status=%s duration_ms=%.2f",
             request.method,
-            request.url.path,
+            raw_path,
             response.status_code,
             duration_ms
         )
@@ -215,7 +224,7 @@ async def log_api_requests(request, call_next):
         logger.exception(
             "HTTP request failed method=%s path=%s",
             request.method,
-            request.url.path
+            raw_path
         )
         raise
 
@@ -271,22 +280,72 @@ app.include_router(
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
+        "http://localhost:8000",
+        "http://127.0.0.1:8000",
+        "http://localhost",
+        "http://localhost:80",
         "https://192.168.38.146"
     ],
+    allow_origin_regex=r"^https?://.*",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
 # ============================================================
-# HOME
+# WEB DASHBOARD & STATIC FILE SERVING
 # ============================================================
 
 @app.get("/")
-def home():
-    return {
-        "message": "Welcome to AI Powered Cyber Digital Twin"
-    }
+def home(request: Request):
+    accept = request.headers.get("accept", "")
+    if "application/json" in accept and "text/html" not in accept:
+        return {
+            "message": "Welcome to AI Powered Cyber Digital Twin",
+            "status": "online",
+            "docs": "/docs",
+            "dashboard": "/"
+        }
+    index_file = FRONTEND_DIR / "index.html"
+    if index_file.exists():
+        return FileResponse(index_file, media_type="text/html")
+    return {"message": "Welcome to AI Powered Cyber Digital Twin"}
+
+
+@app.get("/index.html")
+def serve_index_html():
+    index_file = FRONTEND_DIR / "index.html"
+    if index_file.exists():
+        return FileResponse(index_file, media_type="text/html")
+    raise HTTPException(status_code=404, detail="Index HTML not found")
+
+
+@app.get("/style.css")
+def serve_style_css():
+    css_file = FRONTEND_DIR / "style.css"
+    if css_file.exists():
+        return FileResponse(css_file, media_type="text/css")
+    raise HTTPException(status_code=404, detail="Stylesheet not found")
+
+
+@app.get("/app.js")
+def serve_app_js():
+    js_file = FRONTEND_DIR / "app.js"
+    if js_file.exists():
+        return FileResponse(js_file, media_type="application/javascript")
+    raise HTTPException(status_code=404, detail="JavaScript file not found")
+
+
+@app.get("/favicon.ico")
+def serve_favicon():
+    fav = FRONTEND_DIR / "favicon.ico"
+    if fav.exists():
+        return FileResponse(fav, media_type="image/x-icon")
+    raise HTTPException(status_code=404, detail="Favicon not found")
+
+
+if FRONTEND_DIR.exists():
+    app.mount("/static", StaticFiles(directory=str(FRONTEND_DIR), html=True), name="static")
 
 
 # ============================================================

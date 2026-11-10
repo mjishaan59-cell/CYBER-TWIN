@@ -947,6 +947,23 @@ document.addEventListener(
 
         }
 
+        const quickDemoBtn = document.getElementById("quickDemoLoginBtn");
+        if (quickDemoBtn) {
+            quickDemoBtn.addEventListener("click", () => {
+                const uInput = document.getElementById("loginUsername");
+                const pInput = document.getElementById("loginPassword");
+                if (uInput) uInput.value = "admin";
+                if (pInput) pInput.value = "admin123";
+                if (loginForm) {
+                    if (loginForm.requestSubmit) {
+                        loginForm.requestSubmit();
+                    } else {
+                        loginForm.dispatchEvent(new Event("submit", { cancelable: true }));
+                    }
+                }
+            });
+        }
+
 
         const existingToken =
             getAccessToken();

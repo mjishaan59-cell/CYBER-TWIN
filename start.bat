@@ -38,14 +38,14 @@ REM 5. Launch FastAPI backend
 echo.
 echo ======================================================================
 echo  Starting Cyber Digital Twin Backend API Server...
+echo  - Web Dashboard UI:              http://localhost:8000/
 echo  - Interactive Swagger API Docs:  http://localhost:8000/docs
-echo  - Web Dashboard UI:              http://localhost:8000/static/index.html
 echo  - Press CTRL+C to stop the server
 echo ======================================================================
 echo.
 
-REM Automatically open browser after 3 seconds
-start "" http://localhost:8000/docs
+REM Automatically open browser to the Cyber Digital Twin Dashboard
+start "" http://localhost:8000/
 
 python manage.py run --port 8000
 pause

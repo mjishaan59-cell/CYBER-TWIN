@@ -63,8 +63,8 @@ def cmd_run(args):
     print(f"{Colors.GREEN}[*] Starting Cyber Digital Twin Backend API...{Colors.RESET}")
     print(f"{Colors.BLUE}    Host: {host}{Colors.RESET}")
     print(f"{Colors.BLUE}    Port: {port}{Colors.RESET}")
-    print(f"{Colors.BLUE}    API Docs: http://{host}:{port}/docs{Colors.RESET}")
-    print(f"{Colors.BLUE}    Frontend Dashboard: http://{host}:{port}/static/index.html{Colors.RESET}\n")
+    print(f"{Colors.BLUE}    Frontend Dashboard: http://{host}:{port}/{Colors.RESET}")
+    print(f"{Colors.BLUE}    Swagger API Docs:   http://{host}:{port}/docs{Colors.RESET}\n")
 
     cmd = [
         sys.executable,
