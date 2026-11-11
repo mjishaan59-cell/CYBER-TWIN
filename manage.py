@@ -296,7 +296,7 @@ def main():
     parser_run = subparsers.add_parser("run", help="Start the FastAPI backend server")
     parser_run.add_argument("--host", default="0.0.0.0", help="Binding host address (default: 0.0.0.0)")
     parser_run.add_argument("--port", type=int, default=8000, help="Port to listen on (default: 8000)")
-    parser_run.add_argument("--reload", action="store_true", default=True, help="Enable auto-reload")
+    parser_run.add_argument("--reload", action="store_true", default=False, help="Enable auto-reload (development only)")
 
     # Test command
     parser_test = subparsers.add_parser("test", help="Execute test suites")
