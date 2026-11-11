@@ -2,6 +2,8 @@
 # PHASE 21.6 - ADMIN NOTIFICATION SETTINGS MANAGER
 # ============================================================
 
+from datetime import datetime, timezone
+
 from sqlalchemy import text
 
 from backend.database import engine, is_database_online
@@ -84,11 +86,18 @@ def _default_notification_setting(severity):
     }
 
 
+_memory_notification_settings = {
+    severity: _default_notification_setting(severity)
+    for severity in ("CRITICAL", "HIGH", "MEDIUM", "LOW")
+}
+_memory_notification_settings_audit = []
+
+
 def get_notification_settings():
 
     if not is_database_online():
         return [
-            _default_notification_setting(severity)
+            dict(_memory_notification_settings[severity])
             for severity in ("CRITICAL", "HIGH", "MEDIUM", "LOW")
         ]
 
@@ -96,7 +105,7 @@ def get_notification_settings():
         connection = engine.connect()
     except Exception:
         return [
-            _default_notification_setting(severity)
+            dict(_memory_notification_settings[severity])
             for severity in ("CRITICAL", "HIGH", "MEDIUM", "LOW")
         ]
 
@@ -151,12 +160,12 @@ def get_notification_setting(severity):
     )
 
     if not is_database_online():
-        return _default_notification_setting(normalized)
+        return dict(_memory_notification_settings[normalized])
 
     try:
         connection = engine.connect()
     except Exception:
-        return _default_notification_setting(normalized)
+        return dict(_memory_notification_settings[normalized])
 
     with connection:
 
@@ -255,6 +264,43 @@ def update_notification_setting(
         raise ValueError(
             "CRITICAL dashboard notifications cannot be disabled"
         )
+
+    if not is_database_online():
+        current = _memory_notification_settings[normalized_severity]
+        old_enabled = bool(current[column])
+        if old_enabled == enabled:
+            return {
+                "status": "unchanged",
+                "severity": normalized_severity,
+                "channel": normalized_channel,
+                "enabled": enabled
+            }
+
+        now = datetime.now(timezone.utc).isoformat()
+        current[column] = enabled
+        current["updated_by_user_id"] = changed_by_user_id
+        current["updated_at"] = now
+
+        audit_entry = {
+            "id": len(_memory_notification_settings_audit) + 1,
+            "severity": normalized_severity,
+            "channel": normalized_channel,
+            "old_enabled": old_enabled,
+            "new_enabled": enabled,
+            "changed_by_user_id": changed_by_user_id,
+            "changed_by_username": username,
+            "changed_at": now
+        }
+        _memory_notification_settings_audit.insert(0, audit_entry)
+
+        return {
+            "status": "updated",
+            "severity": normalized_severity,
+            "channel": normalized_channel,
+            "old_enabled": old_enabled,
+            "new_enabled": enabled,
+            "changed_by": username
+        }
 
     with engine.begin() as connection:
 
@@ -373,12 +419,12 @@ def get_notification_settings_audit(limit=100):
         )
 
     if not is_database_online():
-        return []
+        return list(_memory_notification_settings_audit[:limit])
 
     try:
         connection = engine.connect()
     except Exception:
-        return []
+        return list(_memory_notification_settings_audit[:limit])
 
     with connection:
 

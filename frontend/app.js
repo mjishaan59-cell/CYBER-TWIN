@@ -1186,6 +1186,10 @@ function updateCharts(
     diskData
 ) {
 
+    if (typeof Chart === "undefined") {
+        return;
+    }
+
     if (cpuChart) {
         cpuChart.destroy();
     }
@@ -3937,6 +3941,14 @@ async function loadNotificationAnalytics() {
 
         });
 
+        if (typeof Chart === "undefined") {
+            updateText(
+                "analyticsUpdated",
+                `Last updated: ${new Date().toLocaleString()} | ${period.toUpperCase()} | Last ${days} days (Charts unavailable offline)`
+            );
+            return;
+        }
+
         // ----------------------------------------------------
         // EVENT NOTIFICATION TREND
         // ----------------------------------------------------
@@ -5124,12 +5136,12 @@ async function loadNetworkData() {
                     tr.innerHTML = `
                         <td style="font-family: monospace; font-weight: bold;">${escapeHtml(i.interface_name)}</td>
                         <td><span style="color: ${i.is_up ? '#16a34a' : '#dc2626'}; font-weight: bold;">${i.is_up ? 'UP' : 'DOWN'}</span></td>
-                        <td>${i.speed_mbps} Mbps</td>
-                        <td>${formatBytes(i.bytes_sent)}</td>
-                        <td>${formatBytes(i.bytes_recv)}</td>
-                        <td style="font-size: 12px;">↓ ${i.packets_recv.toLocaleString()} / ↑ ${i.packets_sent.toLocaleString()}</td>
-                        <td style="font-size: 12px; color: ${(i.dropin > 0 || i.dropout > 0 || i.errin > 0) ? '#dc2626' : '#16a34a'};">
-                            ${(i.dropin > 0 || i.dropout > 0 || i.errin > 0) ? `Drops: ${i.dropin + i.dropout}, Errs: ${i.errin}` : '✓ 0 errors'}
+                        <td>${i.speed_mbps ?? 0} Mbps</td>
+                        <td>${formatBytes(i.bytes_sent ?? 0)}</td>
+                        <td>${formatBytes(i.bytes_recv ?? 0)}</td>
+                        <td style="font-size: 12px;">↓ ${(i.packets_recv ?? 0).toLocaleString()} / ↑ ${(i.packets_sent ?? 0).toLocaleString()}</td>
+                        <td style="font-size: 12px; color: ${((i.dropin || 0) > 0 || (i.dropout || 0) > 0 || (i.errin || 0) > 0) ? '#dc2626' : '#16a34a'};">
+                            ${((i.dropin || 0) > 0 || (i.dropout || 0) > 0 || (i.errin || 0) > 0) ? `Drops: ${(i.dropin || 0) + (i.dropout || 0)}, Errs: ${i.errin || 0}` : '✓ 0 errors'}
                         </td>
                     `;
                     ifaceTable.appendChild(tr);

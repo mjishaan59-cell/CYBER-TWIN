@@ -359,63 +359,64 @@ class NetworkMonitoringService:
         self._memory_ports[hostname] = listening_ports
 
         # Database Persistence (safe non-blocking)
-        try:
-            with engine.begin() as conn:
-                for iface in interfaces:
-                    conn.execute(text("""
-                        INSERT INTO network_interface_snapshots
-                        (hostname, interface_name, bytes_sent, bytes_recv, packets_sent, packets_recv, errin, errout, dropin, dropout, is_up, speed_mbps)
-                        VALUES (:host, :name, :bs, :br, :ps, :pr, :ei, :eo, :di, :do, :up, :spd)
-                    """), {
-                        "host": hostname,
-                        "name": iface["interface_name"],
-                        "bs": iface["bytes_sent"],
-                        "br": iface["bytes_recv"],
-                        "ps": iface["packets_sent"],
-                        "pr": iface["packets_recv"],
-                        "ei": iface["errin"],
-                        "eo": iface["errout"],
-                        "di": iface["dropin"],
-                        "do": iface["dropout"],
-                        "up": iface["is_up"],
-                        "spd": iface["speed_mbps"]
-                    })
-                for lp in listening_ports:
-                    conn.execute(text("""
-                        INSERT INTO listening_port_records
-                        (hostname, protocol, bind_address, port, pid, process_name, is_authorized, service_hint, risk_level)
-                        VALUES (:host, :proto, :bind, :port, :pid, :pname, :auth, :hint, :risk)
-                    """), {
-                        "host": hostname,
-                        "proto": lp["protocol"],
-                        "bind": lp["bind_address"],
-                        "port": lp["port"],
-                        "pid": lp["pid"],
-                        "pname": lp["process_name"],
-                        "auth": lp["is_authorized"],
-                        "hint": lp["service_hint"],
-                        "risk": lp["risk_level"]
-                    })
-                for al in new_alerts:
-                    conn.execute(text("""
-                        INSERT INTO network_security_alerts
-                        (hostname, alert_type, severity, source_ip, source_port, destination_ip, destination_port, protocol, mitre_technique, description, recommendation)
-                        VALUES (:host, :type, :sev, :sip, :sport, :dip, :dport, :proto, :mitre, :desc, :rec)
-                    """), {
-                        "host": hostname,
-                        "type": al["alert_type"],
-                        "sev": al["severity"],
-                        "sip": al["source_ip"],
-                        "sport": al["source_port"],
-                        "dip": al["destination_ip"],
-                        "dport": al["destination_port"],
-                        "proto": al["protocol"],
-                        "mitre": al["mitre_technique"],
-                        "desc": al["description"],
-                        "rec": al["recommendation"]
-                    })
-        except Exception:
-            pass
+        if is_database_online():
+            try:
+                with engine.begin() as conn:
+                    for iface in interfaces:
+                        conn.execute(text("""
+                            INSERT INTO network_interface_snapshots
+                            (hostname, interface_name, bytes_sent, bytes_recv, packets_sent, packets_recv, errin, errout, dropin, dropout, is_up, speed_mbps)
+                            VALUES (:host, :name, :bs, :br, :ps, :pr, :ei, :eo, :di, :do, :up, :spd)
+                        """), {
+                            "host": hostname,
+                            "name": iface["interface_name"],
+                            "bs": iface["bytes_sent"],
+                            "br": iface["bytes_recv"],
+                            "ps": iface["packets_sent"],
+                            "pr": iface["packets_recv"],
+                            "ei": iface["errin"],
+                            "eo": iface["errout"],
+                            "di": iface["dropin"],
+                            "do": iface["dropout"],
+                            "up": iface["is_up"],
+                            "spd": iface["speed_mbps"]
+                        })
+                    for lp in listening_ports:
+                        conn.execute(text("""
+                            INSERT INTO listening_port_records
+                            (hostname, protocol, bind_address, port, pid, process_name, is_authorized, service_hint, risk_level)
+                            VALUES (:host, :proto, :bind, :port, :pid, :pname, :auth, :hint, :risk)
+                        """), {
+                            "host": hostname,
+                            "proto": lp["protocol"],
+                            "bind": lp["bind_address"],
+                            "port": lp["port"],
+                            "pid": lp["pid"],
+                            "pname": lp["process_name"],
+                            "auth": lp["is_authorized"],
+                            "hint": lp["service_hint"],
+                            "risk": lp["risk_level"]
+                        })
+                    for al in new_alerts:
+                        conn.execute(text("""
+                            INSERT INTO network_security_alerts
+                            (hostname, alert_type, severity, source_ip, source_port, destination_ip, destination_port, protocol, mitre_technique, description, recommendation)
+                            VALUES (:host, :type, :sev, :sip, :sport, :dip, :dport, :proto, :mitre, :desc, :rec)
+                        """), {
+                            "host": hostname,
+                            "type": al["alert_type"],
+                            "sev": al["severity"],
+                            "sip": al["source_ip"],
+                            "sport": al["source_port"],
+                            "dip": al["destination_ip"],
+                            "dport": al["destination_port"],
+                            "proto": al["protocol"],
+                            "mitre": al["mitre_technique"],
+                            "desc": al["description"],
+                            "rec": al["recommendation"]
+                        })
+            except Exception:
+                pass
 
         return {
             "hostname": hostname,

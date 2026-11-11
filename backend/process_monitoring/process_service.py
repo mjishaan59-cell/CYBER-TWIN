@@ -177,42 +177,43 @@ class ProcessMonitoringService:
                 self._memory_alerts.append(alert)
 
         # Database persistence (non-blocking)
-        try:
-            with engine.begin() as conn:
-                for ap in analyzed_procs:
-                    conn.execute(text("""
-                        INSERT INTO monitored_processes
-                        (hostname, pid, ppid, username, process_name, cmdline, cpu_percent, memory_percent, status, is_suspicious, threat_category)
-                        VALUES (:host, :pid, :ppid, :user, :name, :cmd, :cpu, :mem, :status, :susp, :threat)
-                    """), {
-                        "host": hostname,
-                        "pid": ap["pid"],
-                        "ppid": ap.get("ppid", 0),
-                        "user": ap["username"],
-                        "name": ap["process_name"],
-                        "cmd": ap.get("cmdline", "")[:1000],
-                        "cpu": ap.get("cpu_percent", 0.0),
-                        "mem": ap.get("memory_percent", 0.0),
-                        "status": ap.get("status", "R"),
-                        "susp": ap["is_suspicious"],
-                        "threat": ap["threat_category"]
-                    })
-                for al in alerts:
-                    conn.execute(text("""
-                        INSERT INTO process_security_alerts
-                        (hostname, alert_type, severity, process_name, pid, details, recommendation)
-                        VALUES (:host, :type, :sev, :name, :pid, :det, :rec)
-                    """), {
-                        "host": hostname,
-                        "type": al["alert_type"],
-                        "sev": al["severity"],
-                        "name": al["process_name"],
-                        "pid": al["pid"],
-                        "det": al["details"],
-                        "rec": al["recommendation"]
-                    })
-        except Exception:
-            pass
+        if is_database_online():
+            try:
+                with engine.begin() as conn:
+                    for ap in analyzed_procs:
+                        conn.execute(text("""
+                            INSERT INTO monitored_processes
+                            (hostname, pid, ppid, username, process_name, cmdline, cpu_percent, memory_percent, status, is_suspicious, threat_category)
+                            VALUES (:host, :pid, :ppid, :user, :name, :cmd, :cpu, :mem, :status, :susp, :threat)
+                        """), {
+                            "host": hostname,
+                            "pid": ap["pid"],
+                            "ppid": ap.get("ppid", 0),
+                            "user": ap["username"],
+                            "name": ap["process_name"],
+                            "cmd": ap.get("cmdline", "")[:1000],
+                            "cpu": ap.get("cpu_percent", 0.0),
+                            "mem": ap.get("memory_percent", 0.0),
+                            "status": ap.get("status", "R"),
+                            "susp": ap["is_suspicious"],
+                            "threat": ap["threat_category"]
+                        })
+                    for al in alerts:
+                        conn.execute(text("""
+                            INSERT INTO process_security_alerts
+                            (hostname, alert_type, severity, process_name, pid, details, recommendation)
+                            VALUES (:host, :type, :sev, :name, :pid, :det, :rec)
+                        """), {
+                            "host": hostname,
+                            "type": al["alert_type"],
+                            "sev": al["severity"],
+                            "name": al["process_name"],
+                            "pid": al["pid"],
+                            "det": al["details"],
+                            "rec": al["recommendation"]
+                        })
+            except Exception:
+                pass
 
         return {
             "hostname": hostname,

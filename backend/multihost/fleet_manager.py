@@ -249,27 +249,28 @@ class FleetManager:
         self._servers[hostname] = record
 
         # Safe DB insertion
-        try:
-            with engine.begin() as conn:
-                conn.execute(text("""
-                    INSERT INTO managed_servers
-                    (hostname, display_name, ip_address, ssh_port, ssh_username, auth_method, environment, host_group, os_flavor, status, latency_ms, tags, notes)
-                    VALUES (:host, :name, :ip, :port, :user, :auth, :env, :grp, :os, 'ONLINE', 1.5, :tags, :notes)
-                """), {
-                    "host": record["hostname"],
-                    "name": record["display_name"],
-                    "ip": record["ip_address"],
-                    "port": record["ssh_port"],
-                    "user": record["ssh_username"],
-                    "auth": record["auth_method"],
-                    "env": record["environment"],
-                    "grp": record["host_group"],
-                    "os": record["os_flavor"],
-                    "tags": record["tags"],
-                    "notes": record["notes"]
-                })
-        except Exception:
-            pass
+        if is_database_online():
+            try:
+                with engine.begin() as conn:
+                    conn.execute(text("""
+                        INSERT INTO managed_servers
+                        (hostname, display_name, ip_address, ssh_port, ssh_username, auth_method, environment, host_group, os_flavor, status, latency_ms, tags, notes)
+                        VALUES (:host, :name, :ip, :port, :user, :auth, :env, :grp, :os, 'ONLINE', 1.5, :tags, :notes)
+                    """), {
+                        "host": record["hostname"],
+                        "name": record["display_name"],
+                        "ip": record["ip_address"],
+                        "port": record["ssh_port"],
+                        "user": record["ssh_username"],
+                        "auth": record["auth_method"],
+                        "env": record["environment"],
+                        "grp": record["host_group"],
+                        "os": record["os_flavor"],
+                        "tags": record["tags"],
+                        "notes": record["notes"]
+                    })
+            except Exception:
+                pass
 
         return record
 

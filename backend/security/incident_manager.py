@@ -37,6 +37,75 @@ def _now():
     return datetime.now(timezone.utc).replace(tzinfo=None)
 
 
+_memory_incident_history = {}
+_memory_incident_workflows = {}
+_memory_history_seq = 0
+
+
+def _mem_latest_status(incident_id):
+    history = _memory_incident_history.get(incident_id, [])
+    return history[-1] if history else None
+
+
+def _mem_get_or_create_workflow(incident_id):
+    if incident_id not in _memory_incident_workflows:
+        _memory_incident_workflows[incident_id] = {
+            "incident_id": incident_id,
+            "assigned_to_user_id": None,
+            "acknowledged_by_user_id": None,
+            "acknowledged_at": None,
+            "resolution_summary": None,
+            "updated_by_user_id": None,
+            "updated_at": _now(),
+        }
+    return _memory_incident_workflows[incident_id]
+
+
+def _mem_append_history(
+    incident_id,
+    status,
+    previous_status,
+    action,
+    notes=None,
+    changed_by_user_id=None
+):
+    global _memory_history_seq
+    _memory_history_seq += 1
+    entry = {
+        "id": _memory_history_seq,
+        "incident_id": incident_id,
+        "status": status,
+        "previous_status": previous_status,
+        "action": action,
+        "notes": notes,
+        "changed_by_user_id": changed_by_user_id,
+        "updated_at": _now(),
+    }
+    _memory_incident_history.setdefault(incident_id, []).append(entry)
+    return dict(entry)
+
+
+def _mem_ensure_open(incident_id):
+    latest = _mem_latest_status(incident_id)
+    if latest is not None:
+        return dict(latest)
+    return _mem_append_history(
+        incident_id=incident_id,
+        status="OPEN",
+        previous_status=None,
+        action="INCIDENT_REGISTERED",
+        notes="Incident automatically registered by detection engine",
+    )
+
+
+def _mem_validate_active_analyst(user_id):
+    if user_id == 2:
+        return {"id": 2, "username": "analyst", "role": "analyst"}
+    if user_id in (1, 3):
+        raise ValueError("Only active analyst accounts can be assigned")
+    raise ValueError("Assigned user does not exist")
+
+
 def _latest_status(db: Session, incident_id):
 
     return (
@@ -164,7 +233,8 @@ def _history_dict(incident):
 def get_incident_status(incident_id):
 
     if not is_database_online():
-        return None
+        latest = _mem_latest_status(incident_id)
+        return dict(latest) if latest else None
 
     db: Session = SessionLocal()
 
@@ -187,7 +257,7 @@ def get_incident_status(incident_id):
 def get_incident_history(incident_id):
 
     if not is_database_online():
-        return []
+        return [dict(item) for item in _memory_incident_history.get(incident_id, [])]
 
     db: Session = SessionLocal()
 
@@ -220,7 +290,8 @@ def get_incident_history(incident_id):
 def get_incident_workflow(incident_id):
 
     if not is_database_online():
-        return None
+        workflow = _memory_incident_workflows.get(incident_id)
+        return dict(workflow) if workflow else None
 
     db: Session = SessionLocal()
 
@@ -255,6 +326,9 @@ def get_incident_workflow(incident_id):
 
 
 def ensure_incident_open(incident_id):
+
+    if not is_database_online():
+        return _mem_ensure_open(incident_id)
 
     db: Session = SessionLocal()
 
@@ -294,6 +368,30 @@ def update_incident_status(
         raise ValueError(
             f"Invalid status. Allowed statuses: {VALID_STATUSES}"
         )
+
+    if not is_database_online():
+        latest = _mem_latest_status(incident_id)
+        previous_status = latest["status"] if latest else None
+        if previous_status is not None:
+            allowed = ALLOWED_TRANSITIONS.get(previous_status, [])
+            if new_status not in allowed:
+                raise ValueError(
+                    f"Invalid lifecycle transition: "
+                    f"{previous_status} -> {new_status}. "
+                    f"Allowed transitions: {allowed}"
+                )
+        incident = _mem_append_history(
+            incident_id=incident_id,
+            status=new_status,
+            previous_status=previous_status,
+            action="STATUS_CHANGED",
+            notes=notes,
+            changed_by_user_id=changed_by_user_id,
+        )
+        workflow = _mem_get_or_create_workflow(incident_id)
+        workflow["updated_by_user_id"] = changed_by_user_id
+        workflow["updated_at"] = _now()
+        return incident
 
     db: Session = SessionLocal()
 
@@ -356,6 +454,27 @@ def assign_incident(
     changed_by_user_id
 ):
 
+    if not is_database_online():
+        analyst = _mem_validate_active_analyst(assigned_to_user_id)
+        latest = _mem_ensure_open(incident_id)
+        workflow = _mem_get_or_create_workflow(incident_id)
+        workflow["assigned_to_user_id"] = analyst["id"]
+        workflow["updated_by_user_id"] = changed_by_user_id
+        workflow["updated_at"] = _now()
+        history = _mem_append_history(
+            incident_id=incident_id,
+            status=latest["status"],
+            previous_status=latest["status"],
+            action="ASSIGNED",
+            notes=f"Incident assigned to {analyst['username']}",
+            changed_by_user_id=changed_by_user_id,
+        )
+        return {
+            "incident_id": incident_id,
+            "assigned_to": analyst,
+            "history": history,
+        }
+
     db: Session = SessionLocal()
 
     try:
@@ -410,6 +529,32 @@ def acknowledge_incident(
     incident_id,
     acknowledged_by_user_id
 ):
+
+    if not is_database_online():
+        latest = _mem_ensure_open(incident_id)
+        workflow = _mem_get_or_create_workflow(incident_id)
+        if workflow["acknowledged_at"] is not None:
+            raise ValueError("Incident has already been acknowledged")
+        now = _now()
+        workflow["acknowledged_by_user_id"] = acknowledged_by_user_id
+        workflow["acknowledged_at"] = now
+        workflow["updated_by_user_id"] = acknowledged_by_user_id
+        workflow["updated_at"] = now
+        history = _mem_append_history(
+            incident_id=incident_id,
+            status=latest["status"],
+            previous_status=latest["status"],
+            action="ACKNOWLEDGED",
+            notes="Incident acknowledged",
+            changed_by_user_id=acknowledged_by_user_id,
+        )
+        return {
+            "incident_id": incident_id,
+            "acknowledged": True,
+            "acknowledged_by_user_id": acknowledged_by_user_id,
+            "acknowledged_at": now,
+            "history": history,
+        }
 
     db: Session = SessionLocal()
 
@@ -476,6 +621,26 @@ def add_investigation_note(
     if len(note) > 500:
         raise ValueError("Investigation note cannot exceed 500 characters")
 
+    if not is_database_online():
+        latest = _mem_latest_status(incident_id)
+        if latest is None:
+            raise ValueError("Incident does not exist in lifecycle history")
+        if latest["status"] not in ["INVESTIGATING", "CONTAINED"]:
+            raise ValueError(
+                "Investigation notes require INVESTIGATING or CONTAINED status"
+            )
+        workflow = _mem_get_or_create_workflow(incident_id)
+        workflow["updated_by_user_id"] = changed_by_user_id
+        workflow["updated_at"] = _now()
+        return _mem_append_history(
+            incident_id=incident_id,
+            status=latest["status"],
+            previous_status=latest["status"],
+            action="NOTE_ADDED",
+            notes=note,
+            changed_by_user_id=changed_by_user_id,
+        )
+
     db: Session = SessionLocal()
 
     try:
@@ -537,6 +702,30 @@ def resolve_incident(
 
     if len(resolution_summary) > 1000:
         raise ValueError("Resolution summary cannot exceed 1000 characters")
+
+    if not is_database_online():
+        latest = _mem_latest_status(incident_id)
+        if latest is None:
+            raise ValueError("Incident does not exist in lifecycle history")
+        if latest["status"] != "CONTAINED":
+            raise ValueError("Only CONTAINED incidents can be resolved")
+        workflow = _mem_get_or_create_workflow(incident_id)
+        workflow["resolution_summary"] = resolution_summary
+        workflow["updated_by_user_id"] = changed_by_user_id
+        workflow["updated_at"] = _now()
+        history = _mem_append_history(
+            incident_id=incident_id,
+            status="RESOLVED",
+            previous_status="CONTAINED",
+            action="RESOLVED",
+            notes=resolution_summary[:500],
+            changed_by_user_id=changed_by_user_id,
+        )
+        return {
+            "incident_id": incident_id,
+            "resolution_summary": workflow["resolution_summary"],
+            "history": history,
+        }
 
     db: Session = SessionLocal()
 
@@ -601,6 +790,27 @@ def reopen_incident(
 
     if len(notes) > 500:
         raise ValueError("Reopening reason cannot exceed 500 characters")
+
+    if not is_database_online():
+        latest = _mem_latest_status(incident_id)
+        if latest is None:
+            raise ValueError("Incident does not exist in lifecycle history")
+        if latest["status"] not in ["RESOLVED", "CLOSED"]:
+            raise ValueError("Only RESOLVED or CLOSED incidents can be reopened")
+        workflow = _mem_get_or_create_workflow(incident_id)
+        workflow["resolution_summary"] = None
+        workflow["acknowledged_by_user_id"] = None
+        workflow["acknowledged_at"] = None
+        workflow["updated_by_user_id"] = changed_by_user_id
+        workflow["updated_at"] = _now()
+        return _mem_append_history(
+            incident_id=incident_id,
+            status="OPEN",
+            previous_status=latest["status"],
+            action="REOPENED",
+            notes=notes,
+            changed_by_user_id=changed_by_user_id,
+        )
 
     db: Session = SessionLocal()
 

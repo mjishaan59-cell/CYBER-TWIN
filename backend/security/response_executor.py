@@ -13,7 +13,7 @@
 
 from datetime import datetime, timezone
 
-from backend.database import SessionLocal
+from backend.database import SessionLocal, is_database_online
 from backend.models.security_response_audit import SecurityResponseAudit
 from backend.utils.logging_config import get_security_logger
 
@@ -195,115 +195,117 @@ def execute_response(
 
     db = None
 
-    try:
+    if is_database_online():
 
-        db = SessionLocal()
+        try:
 
-        # ----------------------------------------------------
-        # DUPLICATE PROTECTION
-        # ----------------------------------------------------
+            db = SessionLocal()
 
-        existing_record = (
-            db.query(SecurityResponseAudit)
-            .filter(
-                SecurityResponseAudit.incident_id == incident_id,
-                SecurityResponseAudit.execution_action == action,
-                SecurityResponseAudit.execution_mode == EXECUTION_MODE
+            # ----------------------------------------------------
+            # DUPLICATE PROTECTION
+            # ----------------------------------------------------
+
+            existing_record = (
+                db.query(SecurityResponseAudit)
+                .filter(
+                    SecurityResponseAudit.incident_id == incident_id,
+                    SecurityResponseAudit.execution_action == action,
+                    SecurityResponseAudit.execution_mode == EXECUTION_MODE
+                )
+                .first()
             )
-            .first()
-        )
 
-        if existing_record:
+            if existing_record:
 
-            security_logger.warning(
-                "Duplicate response skipped incident_id=%s action=%s",
+                security_logger.warning(
+                    "Duplicate response skipped incident_id=%s action=%s",
+                    incident_id,
+                    action
+                )
+
+                audit_duplicate = True
+
+                print(
+                    f"[AUDIT] Existing record found for "
+                    f"incident {incident_id} "
+                    f"with action {action}. "
+                    f"Skipping duplicate."
+                )
+
+            else:
+
+                audit_record = SecurityResponseAudit(
+
+                    incident_id=incident_id,
+
+                    incident_type=incident_type,
+
+                    severity=severity,
+
+                    source_ip=source_ip,
+
+                    threat_score=threat_score,
+
+                    priority=priority,
+
+                    ai_decision=action,
+
+                    recommended_action=decision.get(
+                        "recommended_action",
+                        action
+                    ),
+
+                    confidence_score=confidence_score,
+
+                    confidence_level=confidence_level,
+
+                    execution_mode=EXECUTION_MODE,
+
+                    executed=False,
+
+                    execution_action=action,
+
+                    execution_message=message,
+
+                    executed_by=executed_by,
+
+                    executed_by_user_id=executed_by_user_id,
+
+                    execution_reason=execution_reason
+                )
+
+                db.add(audit_record)
+
+                db.commit()
+
+                audit_saved = True
+
+                security_logger.info(
+                    "Security response audit saved incident_id=%s action=%s",
+                    incident_id,
+                    action
+                )
+
+        except Exception as exc:
+
+            if db is not None:
+                db.rollback()
+
+            security_logger.error(
+                "Security response audit failed incident_id=%s error_type=%s",
                 incident_id,
-                action
+                type(exc).__name__
             )
-
-            audit_duplicate = True
 
             print(
-                f"[AUDIT] Existing record found for "
-                f"incident {incident_id} "
-                f"with action {action}. "
-                f"Skipping duplicate."
+                f"[AUDIT ERROR] Could not save "
+                f"security response audit: {exc}"
             )
 
-        else:
+        finally:
 
-            audit_record = SecurityResponseAudit(
-
-                incident_id=incident_id,
-
-                incident_type=incident_type,
-
-                severity=severity,
-
-                source_ip=source_ip,
-
-                threat_score=threat_score,
-
-                priority=priority,
-
-                ai_decision=action,
-
-                recommended_action=decision.get(
-                    "recommended_action",
-                    action
-                ),
-
-                confidence_score=confidence_score,
-
-                confidence_level=confidence_level,
-
-                execution_mode=EXECUTION_MODE,
-
-                executed=False,
-
-                execution_action=action,
-
-                execution_message=message,
-
-                executed_by=executed_by,
-
-                executed_by_user_id=executed_by_user_id,
-
-                execution_reason=execution_reason
-            )
-
-            db.add(audit_record)
-
-            db.commit()
-
-            audit_saved = True
-
-            security_logger.info(
-                "Security response audit saved incident_id=%s action=%s",
-                incident_id,
-                action
-            )
-
-    except Exception as exc:
-
-        if db is not None:
-            db.rollback()
-
-        security_logger.error(
-            "Security response audit failed incident_id=%s error_type=%s",
-            incident_id,
-            type(exc).__name__
-        )
-
-        print(
-            f"[AUDIT ERROR] Could not save "
-            f"security response audit: {exc}"
-        )
-
-    finally:
-
-        if db is not None:
-            db.close()
+            if db is not None:
+                db.close()
 
 
     # --------------------------------------------------------

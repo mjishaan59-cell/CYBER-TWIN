@@ -165,29 +165,30 @@ class IncidentTimelineService:
             )
 
         # Non-blocking DB write
-        try:
-            with engine.begin() as conn:
-                conn.execute(text("""
-                    INSERT INTO playbook_execution_audits
-                    (execution_id, playbook_id, playbook_name, incident_id, target_hostname, executed_by, mode, safeguards_passed, safeguard_notes, status, parameters, execution_log, result_summary)
-                    VALUES (:eid, :pid, :pname, :inc, :host, :by, :mode, :safe, :notes, :status, :params, :log, :sum)
-                """), {
-                    "eid": result["execution_id"],
-                    "pid": result["playbook_id"],
-                    "pname": result["playbook_name"],
-                    "inc": result["incident_id"],
-                    "host": result["target_hostname"],
-                    "by": result["executed_by"],
-                    "mode": result["mode"],
-                    "safe": result["safeguards_passed"],
-                    "notes": result["safeguard_notes"],
-                    "status": result["status"],
-                    "params": json.dumps(result["parameters"]),
-                    "log": json.dumps(result["execution_log"]),
-                    "sum": result["result_summary"]
-                })
-        except Exception:
-            pass
+        if is_database_online():
+            try:
+                with engine.begin() as conn:
+                    conn.execute(text("""
+                        INSERT INTO playbook_execution_audits
+                        (execution_id, playbook_id, playbook_name, incident_id, target_hostname, executed_by, mode, safeguards_passed, safeguard_notes, status, parameters, execution_log, result_summary)
+                        VALUES (:eid, :pid, :pname, :inc, :host, :by, :mode, :safe, :notes, :status, :params, :log, :sum)
+                    """), {
+                        "eid": result["execution_id"],
+                        "pid": result["playbook_id"],
+                        "pname": result["playbook_name"],
+                        "inc": result["incident_id"],
+                        "host": result["target_hostname"],
+                        "by": result["executed_by"],
+                        "mode": result["mode"],
+                        "safe": result["safeguards_passed"],
+                        "notes": result["safeguard_notes"],
+                        "status": result["status"],
+                        "params": json.dumps(result["parameters"]),
+                        "log": json.dumps(result["execution_log"]),
+                        "sum": result["result_summary"]
+                    })
+            except Exception:
+                pass
 
         return result
 
@@ -227,22 +228,23 @@ class IncidentTimelineService:
         }
         self._timeline_events.append(event)
 
-        try:
-            with engine.begin() as conn:
-                conn.execute(text("""
-                    INSERT INTO incident_timeline_events
-                    (incident_id, event_type, title, source, severity, details)
-                    VALUES (:inc, :type, :title, :src, :sev, :det)
-                """), {
-                    "inc": incident_id,
-                    "type": event_type,
-                    "title": title,
-                    "src": source,
-                    "sev": severity,
-                    "det": details
-                })
-        except Exception:
-            pass
+        if is_database_online():
+            try:
+                with engine.begin() as conn:
+                    conn.execute(text("""
+                        INSERT INTO incident_timeline_events
+                        (incident_id, event_type, title, source, severity, details)
+                        VALUES (:inc, :type, :title, :src, :sev, :det)
+                    """), {
+                        "inc": incident_id,
+                        "type": event_type,
+                        "title": title,
+                        "src": source,
+                        "sev": severity,
+                        "det": details
+                    })
+            except Exception:
+                pass
 
         return event
 
@@ -286,24 +288,25 @@ class IncidentTimelineService:
             details=f"Type: {artifact_type}, SHA-256: {file_hash_sha256[:16]}..." if file_hash_sha256 else f"Type: {artifact_type}"
         )
 
-        try:
-            with engine.begin() as conn:
-                conn.execute(text("""
-                    INSERT INTO incident_evidence_artifacts
-                    (artifact_id, incident_id, artifact_type, file_name, file_hash_sha256, description, collected_by, metadata_json)
-                    VALUES (:aid, :inc, :type, :name, :hash, :desc, :by, :meta)
-                """), {
-                    "aid": art_id,
-                    "inc": incident_id,
-                    "type": artifact_type,
-                    "name": file_name,
-                    "hash": file_hash_sha256,
-                    "desc": description,
-                    "by": collected_by,
-                    "meta": json.dumps(metadata_json or {})
-                })
-        except Exception:
-            pass
+        if is_database_online():
+            try:
+                with engine.begin() as conn:
+                    conn.execute(text("""
+                        INSERT INTO incident_evidence_artifacts
+                        (artifact_id, incident_id, artifact_type, file_name, file_hash_sha256, description, collected_by, metadata_json)
+                        VALUES (:aid, :inc, :type, :name, :hash, :desc, :by, :meta)
+                    """), {
+                        "aid": art_id,
+                        "inc": incident_id,
+                        "type": artifact_type,
+                        "name": file_name,
+                        "hash": file_hash_sha256,
+                        "desc": description,
+                        "by": collected_by,
+                        "meta": json.dumps(metadata_json or {})
+                    })
+            except Exception:
+                pass
 
         return evidence
 

@@ -242,3 +242,80 @@ def test_e2e_21_dashboard_security_and_notification_endpoints():
     assert sim_res.status_code == 200, f"Simulator failed: {sim_res.status_code}: {sim_res.text}"
     assert sim_res.json()["simulation_mode"] == "DRY-RUN"
 
+
+def test_e2e_22_notification_policy_mutation_and_incident_lifecycle():
+    token = get_admin_token()
+    headers = {"Authorization": f"Bearer {token}"}
+
+    # Enable then restore HIGH/EMAIL setting cleanly
+    put_on = client.put(
+        "/api/security/notification-settings/HIGH/EMAIL",
+        json={"enabled": True},
+        headers=headers,
+    )
+    assert put_on.status_code == 200, put_on.text
+    assert put_on.json()["status"] in ("updated", "unchanged")
+
+    # CRITICAL/DASHBOARD cannot be disabled
+    put_bad = client.put(
+        "/api/security/notification-settings/CRITICAL/DASHBOARD",
+        json={"enabled": False},
+        headers=headers,
+    )
+    assert put_bad.status_code == 400
+
+    # Restore HIGH/EMAIL back to False cleanly
+    put_off = client.put(
+        "/api/security/notification-settings/HIGH/EMAIL",
+        json={"enabled": False},
+        headers=headers,
+    )
+    assert put_off.status_code == 200
+
+    # Incident lifecycle workflow
+    import uuid
+    inc_id = f"INC-E2E-{uuid.uuid4().hex[:8]}"
+    ack = client.post(f"/api/security/incidents/{inc_id}/acknowledge", headers=headers)
+    assert ack.status_code == 200, ack.text
+    assert ack.json()["acknowledged"] is True
+
+    st1 = client.post(
+        f"/api/security/incidents/{inc_id}/status?status=INVESTIGATING",
+        headers=headers,
+    )
+    assert st1.status_code == 200, st1.text
+
+    note = client.post(
+        f"/api/security/incidents/{inc_id}/notes",
+        json={"note": "Verified telemetry from live E2E test"},
+        headers=headers,
+    )
+    assert note.status_code == 200, note.text
+
+    st2 = client.post(
+        f"/api/security/incidents/{inc_id}/status?status=CONTAINED",
+        headers=headers,
+    )
+    assert st2.status_code == 200, st2.text
+
+    res = client.post(
+        f"/api/security/incidents/{inc_id}/resolve",
+        json={"resolution_summary": "Contained via automated E2E verification"},
+        headers=headers,
+    )
+    assert res.status_code == 200, res.text
+
+
+def test_e2e_23_viewer_and_analyst_rbac():
+    v_login = client.post("/api/auth/login", json={"username": "viewer", "password": "viewer123"})
+    assert v_login.status_code == 200
+    v_headers = {"Authorization": f"Bearer {v_login.json()['access_token']}"}
+    assert client.get("/api/metrics", headers=v_headers).status_code == 200
+    assert client.post("/api/simulation/run", json={"scenario_id": "SSH_BRUTE_FORCE"}, headers=v_headers).status_code == 403
+
+    a_login = client.post("/api/auth/login", json={"username": "analyst", "password": "analyst123"})
+    assert a_login.status_code == 200
+    a_headers = {"Authorization": f"Bearer {a_login.json()['access_token']}"}
+    assert client.post("/api/simulation/run", json={"scenario_id": "SSH_BRUTE_FORCE", "target_hostname": "prac-server"}, headers=a_headers).status_code == 201
+
+

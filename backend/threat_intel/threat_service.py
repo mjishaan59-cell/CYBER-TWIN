@@ -238,25 +238,26 @@ class ThreatIntelligenceService:
             }
 
         # Audit logging (non-fatal)
-        try:
-            with engine.begin() as conn:
-                conn.execute(
-                    text("""
-                    INSERT INTO threat_lookup_audit
-                    (indicator_value, matched, threat_score, severity, queried_by, context)
-                    VALUES (:val, :matched, :score, :sev, :user, :ctx)
-                    """),
-                    {
-                        "val": clean_val,
-                        "matched": res["matched"],
-                        "score": res["threat_score"],
-                        "sev": res["severity"],
-                        "user": user,
-                        "ctx": context
-                    }
-                )
-        except Exception:
-            pass
+        if is_database_online():
+            try:
+                with engine.begin() as conn:
+                    conn.execute(
+                        text("""
+                        INSERT INTO threat_lookup_audit
+                        (indicator_value, matched, threat_score, severity, queried_by, context)
+                        VALUES (:val, :matched, :score, :sev, :user, :ctx)
+                        """),
+                        {
+                            "val": clean_val,
+                            "matched": res["matched"],
+                            "score": res["threat_score"],
+                            "sev": res["severity"],
+                            "user": user,
+                            "ctx": context
+                        }
+                    )
+            except Exception:
+                pass
 
         return res
 
@@ -349,25 +350,26 @@ class ThreatIntelligenceService:
         ingested_count = self.ingest_indicators(indicators)
 
         # Update feed sync tracking table
-        try:
-            with engine.begin() as conn:
-                for feed_name, feed_info in feed_results["feeds"].items():
-                    sql = """
-                    INSERT INTO threat_feed_sync (feed_name, feed_url, indicator_count, sync_status, last_sync_at)
-                    VALUES (:name, :url, :count, :status, CURRENT_TIMESTAMP)
-                    ON CONFLICT(feed_name) DO UPDATE SET
-                    indicator_count = EXCLUDED.indicator_count,
-                    sync_status = EXCLUDED.sync_status,
-                    last_sync_at = CURRENT_TIMESTAMP;
-                    """
-                    conn.execute(text(sql), {
-                        "name": feed_name,
-                        "url": "https://threat-feed.provider/api",
-                        "count": feed_info["count"],
-                        "status": feed_info["status"]
-                    })
-        except Exception:
-            pass
+        if is_database_online():
+            try:
+                with engine.begin() as conn:
+                    for feed_name, feed_info in feed_results["feeds"].items():
+                        sql = """
+                        INSERT INTO threat_feed_sync (feed_name, feed_url, indicator_count, sync_status, last_sync_at)
+                        VALUES (:name, :url, :count, :status, CURRENT_TIMESTAMP)
+                        ON CONFLICT(feed_name) DO UPDATE SET
+                        indicator_count = EXCLUDED.indicator_count,
+                        sync_status = EXCLUDED.sync_status,
+                        last_sync_at = CURRENT_TIMESTAMP;
+                        """
+                        conn.execute(text(sql), {
+                            "name": feed_name,
+                            "url": "https://threat-feed.provider/api",
+                            "count": feed_info["count"],
+                            "status": feed_info["status"]
+                        })
+            except Exception:
+                pass
 
         return {
             "synced_at": feed_results["synced_at"],
