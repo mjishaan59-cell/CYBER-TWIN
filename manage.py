@@ -25,6 +25,7 @@ Commands:
 import argparse
 import json
 import os
+import socket
 import sys
 import subprocess
 import time
@@ -53,18 +54,52 @@ def print_banner():
     print(banner)
 
 
+def _can_bind_port(host: str, port: int) -> bool:
+    """Return True if (host, port) can accept a new server listener cleanly."""
+    test_host = host or "0.0.0.0"
+    for reuse in (False, True):
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        try:
+            if reuse and hasattr(socket, "SO_REUSEADDR"):
+                sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            sock.bind((test_host, port))
+        except OSError:
+            return False
+        finally:
+            sock.close()
+    return True
+
+
+def _resolve_bind_port(host: str, preferred_port: int, max_offset: int = 20) -> int:
+    """Return preferred_port if bindable, else fall back to the next open port."""
+    if _can_bind_port(host, preferred_port):
+        return preferred_port
+    for offset in range(1, max_offset + 1):
+        candidate = preferred_port + offset
+        if _can_bind_port(host, candidate):
+            return candidate
+    return preferred_port
+
+
 def cmd_run(args):
     """Start the FastAPI backend with Uvicorn."""
     print_banner()
     host = args.host
-    port = args.port
+    requested_port = args.port
+    port = _resolve_bind_port(host, requested_port)
     reload = args.reload
 
+    display_host = "localhost" if host in ("0.0.0.0", "::", "") else host
+    if port != requested_port:
+        print(
+            f"{Colors.YELLOW}[!] Port {requested_port} is already in use or restricted; "
+            f"using available port {port} instead.{Colors.RESET}"
+        )
+
     print(f"{Colors.GREEN}[*] Starting Cyber Digital Twin Backend API...{Colors.RESET}")
-    print(f"{Colors.BLUE}    Host: {host}{Colors.RESET}")
-    print(f"{Colors.BLUE}    Port: {port}{Colors.RESET}")
-    print(f"{Colors.BLUE}    Frontend Dashboard: http://{host}:{port}/{Colors.RESET}")
-    print(f"{Colors.BLUE}    Swagger API Docs:   http://{host}:{port}/docs{Colors.RESET}\n")
+    print(f"{Colors.BLUE}    Bind Address:       {host}:{port}{Colors.RESET}")
+    print(f"{Colors.BLUE}    Frontend Dashboard: http://{display_host}:{port}/{Colors.RESET}")
+    print(f"{Colors.BLUE}    Swagger API Docs:   http://{display_host}:{port}/docs{Colors.RESET}\n")
 
     cmd = [
         sys.executable,
