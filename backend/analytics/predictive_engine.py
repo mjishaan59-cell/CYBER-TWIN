@@ -188,8 +188,7 @@ class PredictiveAnalyticsEngine:
         Generate complete multi-metric forecasts for a given host.
         """
         if not metrics_history:
-            # Generate simulated baseline curve if database is clean
-            metrics_history = self._generate_synthetic_baseline(hostname)
+            metrics_history = []
 
         df = pd.DataFrame(metrics_history)
 
@@ -230,6 +229,19 @@ class PredictiveAnalyticsEngine:
         """
         Predict likelihood (0-100%) of system entering an anomalous state in the next 1 hour.
         """
+        if (
+            cpu_f.get("model_type") == "No Data"
+            and mem_f.get("model_type") == "No Data"
+            and disk_f.get("model_type") == "No Data"
+        ):
+            return {
+                "probability_pct": 0.0,
+                "status": "NO_DATA",
+                "horizon_hours": 1.0,
+                "leading_contributor": "None",
+                "summary": "No telemetry history collected for this host."
+            }
+
         risk_score = 15.0
 
         if cpu_f["trend_direction"] == "RISING" and cpu_f["predicted_1h"] > 75.0:

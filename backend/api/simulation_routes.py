@@ -18,7 +18,7 @@ router = APIRouter(
 
 class RunSimulationRequest(BaseModel):
     scenario_id: str = Field(..., min_length=2, max_length=60)
-    target_hostname: str = Field("prac-server", max_length=100)
+    target_hostname: str = Field("localhost", max_length=100)
 
 
 @router.get("/scenarios")

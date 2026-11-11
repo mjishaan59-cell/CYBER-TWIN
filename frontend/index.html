@@ -5,7 +5,7 @@
 
     <title>Cyber Digital Twin Dashboard</title>
 
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="style.css?v=3">
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
@@ -1594,7 +1594,7 @@
             <div style="display: flex; gap: 10px; align-items: center;">
                 <label for="fleetHostSelector" style="font-weight: bold; font-size: 13px;">Active Server:</label>
                 <select id="fleetHostSelector" onchange="switchActiveHost(this.value)" style="padding: 6px 12px; border-radius: 6px; border: 1px solid #cbd5e1; font-weight: bold; background: #f8fafc;">
-                    <option value="prac-server">prac-server (Primary)</option>
+                    <option value="localhost" selected>localhost (Local Machine - Live)</option>
                 </select>
                 <button type="button" onclick="pingActiveServer()" style="padding: 7px 15px; background: #0891b2; color: white; border: none; border-radius: 6px; font-weight: bold; cursor: pointer;">Ping Host</button>
                 <button type="button" onclick="loadFleetData()" style="padding: 7px 15px; background: #475569; color: white; border: none; border-radius: 6px; font-weight: bold; cursor: pointer;">Refresh Fleet</button>
@@ -1874,7 +1874,7 @@
          JAVASCRIPT
     ====================================================== -->
 
-    <script src="app.js?v=2"></script>
+    <script src="app.js?v=3"></script>
 
 </body>
 

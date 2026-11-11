@@ -49,7 +49,7 @@ def get_fim_events(
 
 @router.get("/baseline")
 def get_host_baseline(
-    hostname: str = Query("prac-server", description="Host name"),
+    hostname: str = Query("localhost", description="Host name"),
     current_user = Depends(get_current_user)
 ):
     """Retrieve the established integrity baseline for a monitored host."""
@@ -86,7 +86,7 @@ def trigger_integrity_scan_by_path(
 
 @router.get("/stats")
 def get_fim_stats(
-    hostname: str = Query("prac-server", description="Host name"),
+    hostname: str = Query("localhost", description="Host name"),
     current_user = Depends(get_current_user)
 ):
     """Retrieve File Integrity Monitoring dashboard statistics."""

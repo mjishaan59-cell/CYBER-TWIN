@@ -17,12 +17,12 @@ router = APIRouter(
 
 
 class TriggerNetworkScanRequest(BaseModel):
-    hostname: str = Field("prac-server", max_length=100)
+    hostname: str = Field("localhost", max_length=100)
 
 
 @router.get("/interfaces")
 def get_interfaces(
-    hostname: str = Query("prac-server", description="Host name"),
+    hostname: str = Query("localhost", description="Host name"),
     current_user = Depends(get_current_user)
 ):
     """Retrieve network interfaces and traffic counters for host."""
@@ -31,7 +31,7 @@ def get_interfaces(
 
 @router.get("/connections")
 def get_connections(
-    hostname: str = Query("prac-server", description="Host name"),
+    hostname: str = Query("localhost", description="Host name"),
     suspicious_only: bool = Query(False, description="Filter only suspicious socket connections"),
     limit: int = Query(50, ge=1, le=200),
     current_user = Depends(get_current_user)
@@ -46,7 +46,7 @@ def get_connections(
 
 @router.get("/ports")
 def get_listening_ports(
-    hostname: str = Query("prac-server", description="Host name"),
+    hostname: str = Query("localhost", description="Host name"),
     unauthorized_only: bool = Query(False, description="Filter only unexpected/unauthorized ports"),
     current_user = Depends(get_current_user)
 ):
@@ -69,7 +69,7 @@ def get_network_alerts(
 
 @router.get("/stats")
 def get_network_stats(
-    hostname: str = Query("prac-server", description="Host name"),
+    hostname: str = Query("localhost", description="Host name"),
     current_user = Depends(get_current_user)
 ):
     """Retrieve summary network security metrics."""

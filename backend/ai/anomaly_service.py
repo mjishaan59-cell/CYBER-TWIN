@@ -19,7 +19,14 @@ def get_metric_values(column, limit=50):
         raise ValueError("Invalid metric column")
 
     if not is_database_online():
-        return []
+        from backend.api.main import get_live_metrics_history
+
+        history = get_live_metrics_history(limit=limit, min_samples=6)
+        return [
+            float(m[column])
+            for m in reversed(history)
+            if column in m and m[column] is not None
+        ]
 
     try:
         with engine.connect() as connection:

@@ -119,19 +119,19 @@ def test_systemd_failure_alerting():
 
 def test_process_service_scan():
     """Verify ProcessMonitoringService can run host scans and return metrics."""
-    scan_res = process_service.scan_host(hostname="prac-server")
+    scan_res = process_service.scan_host(hostname="localhost")
     assert scan_res["total_processes"] > 0
     assert "suspicious_count" in scan_res
     assert "services_count" in scan_res
 
-    stats = process_service.get_stats(hostname="prac-server")
+    stats = process_service.get_stats(hostname="localhost")
     assert stats["running_processes_count"] > 0
     assert "systemd_services_count" in stats
 
-    procs = process_service.list_processes(hostname="prac-server")
+    procs = process_service.list_processes(hostname="localhost")
     assert len(procs) > 0
 
-    services = process_service.list_services(hostname="prac-server")
+    services = process_service.list_services(hostname="localhost")
     assert len(services) > 0
 
 

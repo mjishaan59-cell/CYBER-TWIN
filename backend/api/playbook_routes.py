@@ -18,7 +18,7 @@ router = APIRouter(
 
 class ExecutePlaybookRequest(BaseModel):
     playbook_id: str = Field(..., min_length=2, max_length=60)
-    target_hostname: str = Field("prac-server", max_length=100)
+    target_hostname: str = Field("localhost", max_length=100)
     incident_id: Optional[str] = Field("", max_length=64)
     mode: str = Field("DRY_RUN", description="DRY_RUN or LIVE")
     parameters: Optional[Dict[str, Any]] = Field(default_factory=dict)

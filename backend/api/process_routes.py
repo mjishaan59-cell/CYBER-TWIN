@@ -17,13 +17,13 @@ router = APIRouter(
 
 
 class TriggerScanRequest(BaseModel):
-    hostname: str = Field("prac-server", max_length=100)
+    hostname: str = Field("localhost", max_length=100)
 
 
 @router.get("")
 @router.get("/")
 def get_processes(
-    hostname: str = Query("prac-server", description="Host name"),
+    hostname: str = Query("localhost", description="Host name"),
     sort_by: str = Query("cpu", description="Sort by 'cpu' or 'memory'"),
     suspicious_only: bool = Query(False, description="Filter only suspicious processes"),
     limit: int = Query(50, ge=1, le=200),
@@ -40,7 +40,7 @@ def get_processes(
 
 @router.get("/suspicious")
 def get_suspicious_processes(
-    hostname: str = Query("prac-server", description="Host name"),
+    hostname: str = Query("localhost", description="Host name"),
     current_user = Depends(get_current_user)
 ):
     """Retrieve only suspicious, anomalous, or malicious processes."""
@@ -53,7 +53,7 @@ def get_suspicious_processes(
 
 @router.get("/services")
 def get_systemd_services(
-    hostname: str = Query("prac-server", description="Host name"),
+    hostname: str = Query("localhost", description="Host name"),
     failed_only: bool = Query(False, description="Filter only failed systemd units"),
     current_user = Depends(get_current_user)
 ):
@@ -76,7 +76,7 @@ def get_process_alerts(
 
 @router.get("/stats")
 def get_process_stats(
-    hostname: str = Query("prac-server", description="Host name"),
+    hostname: str = Query("localhost", description="Host name"),
     current_user = Depends(get_current_user)
 ):
     """Retrieve summary metrics for processes and systemd services."""

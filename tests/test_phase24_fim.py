@@ -99,22 +99,22 @@ def test_fim_engine_change_detections():
 
 def test_fim_service_operations():
     """Verify FimService baseline snapshot, scan, and statistics."""
-    # 1. Get baseline
-    baseline = fim_service.get_baseline("test-node")
+    # 1. Get baseline (real on-disk local files)
+    baseline = fim_service.get_baseline("localhost")
     assert len(baseline) > 0
 
     # 2. Trigger scan with identical snapshot -> 0 violations
-    res = fim_service.scan_host_integrity("test-node", active_snapshot=baseline)
+    res = fim_service.scan_host_integrity("localhost", active_snapshot=baseline)
     assert res["violations_detected"] == 0
 
     # 3. Trigger scan with modified file -> 1 violation
     tampered_snapshot = [dict(r) for r in baseline]
     tampered_snapshot[0]["sha256_hash"] = "fedcba9876543210"*4
-    tampered_res = fim_service.scan_host_integrity("test-node", active_snapshot=tampered_snapshot)
+    tampered_res = fim_service.scan_host_integrity("localhost", active_snapshot=tampered_snapshot)
     assert tampered_res["violations_detected"] >= 1
 
     # 4. Check statistics
-    stats = fim_service.get_stats("test-node")
+    stats = fim_service.get_stats("localhost")
     assert stats["monitored_files_count"] > 0
 
 

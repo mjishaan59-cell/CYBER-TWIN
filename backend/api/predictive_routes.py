@@ -22,6 +22,10 @@ router = APIRouter(
 def fetch_host_metrics(hostname: str, limit: int = 100) -> List[Dict[str, Any]]:
     """Retrieve recent time-series telemetry for a host."""
     if not is_database_online():
+        from backend.api.main import get_live_metrics_history, is_local_hostname
+
+        if is_local_hostname(hostname):
+            return get_live_metrics_history(limit=limit, min_samples=6)
         return []
 
     try:
@@ -44,7 +48,7 @@ def fetch_host_metrics(hostname: str, limit: int = 100) -> List[Dict[str, Any]]:
 
 @router.get("/forecast")
 def get_resource_forecast(
-    hostname: str = Query("prac-server", description="Target Linux host"),
+    hostname: str = Query("localhost", description="Target Linux host"),
     limit: int = Query(60, ge=10, le=500),
     current_user = Depends(get_current_user)
 ):
@@ -60,7 +64,7 @@ def get_resource_forecast(
 @router.get("/metrics/{metric_name}")
 def get_metric_projection(
     metric_name: str,
-    hostname: str = Query("prac-server", description="Target Linux host"),
+    hostname: str = Query("localhost", description="Target Linux host"),
     forecast_steps: int = Query(12, ge=3, le=48),
     current_user = Depends(get_current_user)
 ):
@@ -90,7 +94,7 @@ def get_metric_projection(
 
 @router.get("/exhaustion")
 def get_time_to_exhaustion(
-    hostname: str = Query("prac-server", description="Target Linux host"),
+    hostname: str = Query("localhost", description="Target Linux host"),
     current_user = Depends(get_current_user)
 ):
     """
@@ -121,7 +125,7 @@ def get_time_to_exhaustion(
 
 @router.get("/alerts")
 def get_predictive_alerts(
-    hostname: str = Query("prac-server", description="Target Linux host"),
+    hostname: str = Query("localhost", description="Target Linux host"),
     current_user = Depends(get_current_user)
 ):
     """
@@ -138,7 +142,7 @@ def get_predictive_alerts(
 
 @router.post("/retrain")
 def retrain_predictive_models(
-    hostname: str = Query("prac-server", description="Target Linux host"),
+    hostname: str = Query("localhost", description="Target Linux host"),
     current_user = Depends(require_roles({"admin", "analyst"}))
 ):
     """

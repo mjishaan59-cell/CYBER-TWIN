@@ -138,8 +138,13 @@ FRONTEND_DIR = WORKSPACE_ROOT / "frontend"
 
 # In-memory real-time ring buffer for live local metrics
 LIVE_METRICS_HISTORY = deque(maxlen=60)
+_CPU_SAMPLE_STATE = {"ts": 0.0, "val": None}
 
-def capture_live_system_telemetry() -> dict:
+# Prime psutil CPU baseline once at module import cleanly
+psutil.cpu_percent(interval=None)
+
+
+def capture_live_system_telemetry(force_cpu_interval=None) -> dict:
     """Capture 100% genuine, live host hardware telemetry."""
     hostname = socket.gethostname()
     try:
@@ -150,7 +155,21 @@ def capture_live_system_telemetry() -> dict:
     except Exception:
         ip_addr = "127.0.0.1"
 
-    cpu = psutil.cpu_percent(interval=None)
+    now_mono = time.monotonic()
+    if force_cpu_interval is not None:
+        cpu = psutil.cpu_percent(interval=force_cpu_interval)
+        _CPU_SAMPLE_STATE["val"] = cpu
+        _CPU_SAMPLE_STATE["ts"] = time.monotonic()
+    elif _CPU_SAMPLE_STATE["val"] is None:
+        cpu = psutil.cpu_percent(interval=0.1)
+        _CPU_SAMPLE_STATE["val"] = cpu
+        _CPU_SAMPLE_STATE["ts"] = time.monotonic()
+    elif (now_mono - _CPU_SAMPLE_STATE["ts"]) >= 0.5:
+        cpu = psutil.cpu_percent(interval=None)
+        _CPU_SAMPLE_STATE["val"] = cpu
+        _CPU_SAMPLE_STATE["ts"] = now_mono
+    else:
+        cpu = _CPU_SAMPLE_STATE["val"]
     mem = psutil.virtual_memory()
 
     try:
@@ -195,21 +214,38 @@ def capture_live_system_telemetry() -> dict:
     return metric
 
 
+def is_local_hostname(hostname: str = "") -> bool:
+    """Return True when hostname refers to the local host or is omitted."""
+    if not hostname:
+        return True
+    normalized = str(hostname).strip().lower()
+    return normalized in {"localhost", "127.0.0.1", "::1", socket.gethostname().lower()}
+
+
+def get_live_metrics_history(limit: int = 60, min_samples: int = 1) -> list:
+    """Return real in-memory OS telemetry history, sampling genuine reads if needed."""
+    while len(LIVE_METRICS_HISTORY) < min_samples:
+        capture_live_system_telemetry(force_cpu_interval=0.05 if LIVE_METRICS_HISTORY else 0.1)
+    return list(LIVE_METRICS_HISTORY)[-limit:]
+
+
 def _load_host_metrics_dataframe(hostname: str, query: str) -> pd.DataFrame:
     """Load host metrics from PostgreSQL when online, else fall back to live telemetry."""
     if is_database_online():
         try:
             with engine.connect() as connection:
-                return pd.read_sql(
+                df = pd.read_sql(
                     text(query),
                     connection,
                     params={"hostname": hostname},
                 )
+                if not df.empty:
+                    return df
         except Exception:
             pass
 
-    if not LIVE_METRICS_HISTORY:
-        capture_live_system_telemetry()
+    local_host = is_local_hostname(hostname)
+    history = get_live_metrics_history(limit=60, min_samples=6 if local_host else 1)
 
     rows = [
         {
@@ -219,8 +255,8 @@ def _load_host_metrics_dataframe(hostname: str, query: str) -> pd.DataFrame:
             "disk_usage": m["disk_usage"],
             "collected_at": m["collected_at"],
         }
-        for m in LIVE_METRICS_HISTORY
-        if not hostname or m["hostname"] == hostname
+        for m in history
+        if local_host or m["hostname"] == hostname
     ]
     return pd.DataFrame(rows)
 
@@ -375,9 +411,10 @@ app.add_middleware(
         "http://127.0.0.1:8000",
         "http://localhost",
         "http://localhost:80",
-        "https://192.168.38.146"
+        "https://192.168.38.146",
+        "null",
     ],
-    allow_origin_regex=r"^https?://.*",
+    allow_origin_regex=r"^(https?://.*|null)$",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -386,6 +423,12 @@ app.add_middleware(
 # ============================================================
 # WEB DASHBOARD & STATIC FILE SERVING
 # ============================================================
+
+NO_STORE_HEADERS = {
+    "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
+    "Pragma": "no-cache",
+}
+
 
 @app.get("/")
 def home(request: Request):
@@ -399,7 +442,7 @@ def home(request: Request):
         }
     index_file = FRONTEND_DIR / "index.html"
     if index_file.exists():
-        return FileResponse(index_file, media_type="text/html")
+        return FileResponse(index_file, media_type="text/html", headers=NO_STORE_HEADERS)
     return {
         "message": "Welcome to AI Powered Cyber Digital Twin",
         "status": "online",
@@ -412,7 +455,7 @@ def home(request: Request):
 def serve_index_html():
     index_file = FRONTEND_DIR / "index.html"
     if index_file.exists():
-        return FileResponse(index_file, media_type="text/html")
+        return FileResponse(index_file, media_type="text/html", headers=NO_STORE_HEADERS)
     raise HTTPException(status_code=404, detail="Index HTML not found")
 
 
@@ -420,7 +463,7 @@ def serve_index_html():
 def serve_style_css():
     css_file = FRONTEND_DIR / "style.css"
     if css_file.exists():
-        return FileResponse(css_file, media_type="text/css")
+        return FileResponse(css_file, media_type="text/css", headers=NO_STORE_HEADERS)
     raise HTTPException(status_code=404, detail="Stylesheet not found")
 
 
@@ -428,7 +471,7 @@ def serve_style_css():
 def serve_app_js():
     js_file = FRONTEND_DIR / "app.js"
     if js_file.exists():
-        return FileResponse(js_file, media_type="application/javascript")
+        return FileResponse(js_file, media_type="application/javascript", headers=NO_STORE_HEADERS)
     raise HTTPException(status_code=404, detail="JavaScript file not found")
 
 
@@ -535,7 +578,7 @@ def get_anomalies(
 
 @app.get("/ml/anomalies")
 def get_ml_anomalies(
-    hostname: str = "prac-server",
+    hostname: str = "localhost",
     limit: int = 20,
     training_window: int = 1000,
     current_user = Depends(
@@ -604,7 +647,7 @@ def get_ml_anomalies(
 
 @app.get("/predictive/failure")
 def get_predictive_failure(
-    hostname: str = "prac-server",
+    hostname: str = "localhost",
     limit: int = 500,
     current_user = Depends(
         get_current_user
@@ -658,7 +701,7 @@ def get_predictive_failure(
 
 @app.get("/predictive/forecast")
 def get_predictive_forecast_alias(
-    hostname: str = Query("prac-server", description="Target Linux host"),
+    hostname: str = Query("localhost", description="Target host"),
     limit: int = Query(60, ge=10, le=500),
     current_user = Depends(get_current_user)
 ):

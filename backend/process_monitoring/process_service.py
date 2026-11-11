@@ -43,7 +43,7 @@ class ProcessMonitoringService:
         self._memory_alerts: List[Dict[str, Any]] = []
         if is_database_online():
             self._ensure_tables()
-        self._init_defaults("prac-server")
+        self._init_defaults("localhost")
 
     def _ensure_tables(self):
         sql = """
@@ -98,38 +98,117 @@ class ProcessMonitoringService:
         except Exception:
             pass
 
-    def _init_defaults(self, hostname: str):
-        self._memory_processes[hostname] = list(DEFAULT_LINUX_PROCS)
-        self._memory_services[hostname] = list(DEFAULT_SYSTEMD_SERVICES)
+    @staticmethod
+    def _is_local_host(hostname: str) -> bool:
+        import socket
+        norm = (hostname or "").strip().lower()
+        return norm in {"", "localhost", "127.0.0.1", "::1", socket.gethostname().lower()}
 
-    def scan_host(self, hostname: str = "prac-server", custom_processes: Optional[List[Dict[str, Any]]] = None) -> Dict[str, Any]:
+    @staticmethod
+    def _collect_local_processes(limit: int = 50) -> List[Dict[str, Any]]:
+        cpu_cores = max(int(psutil.cpu_count(logical=True) or 1), 1)
+        procs = []
+        for p in psutil.process_iter(['pid', 'ppid', 'name', 'username', 'cmdline', 'cpu_percent', 'memory_percent', 'status']):
+            try:
+                info = p.info
+                pid = int(info.get("pid") or 0)
+                pname = str(info.get("name") or "")
+                # Skip Windows System Idle Process (PID 0), whose idle counter reports 100%+ * cores
+                if pid == 0 or pname.lower() in {"system idle process", "idle"}:
+                    continue
+                raw_cpu = float(info["cpu_percent"] or 0.0)
+                norm_cpu = round(min(100.0, raw_cpu / cpu_cores), 1)
+                procs.append({
+                    "pid": pid,
+                    "ppid": info["ppid"] or 0,
+                    "username": info["username"] or "system",
+                    "process_name": pname or "unknown",
+                    "cmdline": " ".join(info["cmdline"] or []) if isinstance(info["cmdline"], list) else str(info["cmdline"] or ""),
+                    "cpu_percent": norm_cpu,
+                    "memory_percent": float(round(info["memory_percent"] or 0.0, 2)),
+                    "status": str(info["status"] or "running")
+                })
+            except (psutil.NoSuchProcess, psutil.AccessDenied):
+                continue
+        procs.sort(key=lambda x: (x["cpu_percent"], x["memory_percent"]), reverse=True)
+        return procs[:limit]
+
+    @staticmethod
+    def _collect_local_services(hostname: str, limit: int = 40) -> List[Dict[str, Any]]:
+        import os
+        import subprocess
+        services: List[Dict[str, Any]] = []
+        if os.name == "nt" and hasattr(psutil, "win_service_iter"):
+            for svc in psutil.win_service_iter():
+                try:
+                    info = svc.as_dict()
+                    raw_status = str(info.get("status", "unknown")).lower()
+                    active_state = "active" if raw_status == "running" else "inactive"
+                    services.append({
+                        "hostname": hostname,
+                        "service_name": info.get("name") or svc.name(),
+                        "unit_name": info.get("name") or svc.name(),
+                        "load_state": "loaded",
+                        "active_state": active_state,
+                        "sub_state": raw_status,
+                        "description": info.get("display_name") or info.get("name") or "",
+                        "is_failed": False,
+                        "restart_count": 0,
+                    })
+                except Exception:
+                    continue
+                if len(services) >= limit:
+                    break
+            services.sort(key=lambda s: (0 if s["active_state"] == "active" else 1, s["service_name"].lower()))
+            return services
+        try:
+            proc = subprocess.run(
+                ["systemctl", "list-units", "--type=service", "--all", "--no-pager", "--plain", "--no-legend"],
+                capture_output=True,
+                text=True,
+                timeout=3,
+            )
+            if proc.returncode == 0:
+                for line in proc.stdout.splitlines():
+                    parts = line.split(None, 4)
+                    if len(parts) >= 4:
+                        unit, load_s, active_s, sub_s = parts[:4]
+                        desc = parts[4] if len(parts) > 4 else ""
+                        services.append({
+                            "hostname": hostname,
+                            "service_name": unit,
+                            "unit_name": unit,
+                            "load_state": load_s,
+                            "active_state": active_s,
+                            "sub_state": sub_s,
+                            "description": desc,
+                            "is_failed": active_s == "failed" or sub_s == "failed",
+                            "restart_count": 0,
+                        })
+                        if len(services) >= limit:
+                            break
+        except Exception:
+            pass
+        return services
+
+    def _init_defaults(self, hostname: str):
+        if self._is_local_host(hostname):
+            self.scan_host(hostname)
+            return
+        self._memory_processes[hostname] = []
+        self._memory_services[hostname] = []
+
+    def scan_host(self, hostname: str = "localhost", custom_processes: Optional[List[Dict[str, Any]]] = None) -> Dict[str, Any]:
         """
         Collect and analyze processes and services for a host.
         """
         if custom_processes is not None:
             procs = custom_processes
-        elif hostname in self._memory_processes:
-            procs = list(self._memory_processes[hostname])
+        elif self._is_local_host(hostname):
+            procs = self._collect_local_processes()
+            self._memory_services[hostname] = self._collect_local_services(hostname)
         else:
-            # Collect from local psutil if available
-            procs = []
-            for p in psutil.process_iter(['pid', 'ppid', 'name', 'username', 'cmdline', 'cpu_percent', 'memory_percent', 'status']):
-                try:
-                    info = p.info
-                    procs.append({
-                        "pid": info["pid"],
-                        "ppid": info["ppid"] or 0,
-                        "username": info["username"] or "system",
-                        "process_name": info["name"] or "unknown",
-                        "cmdline": " ".join(info["cmdline"] or []) if isinstance(info["cmdline"], list) else str(info["cmdline"] or ""),
-                        "cpu_percent": float(info["cpu_percent"] or 0.0),
-                        "memory_percent": float(round(info["memory_percent"] or 0.0, 2)),
-                        "status": str(info["status"] or "R")
-                    })
-                except (psutil.NoSuchProcess, psutil.AccessDenied):
-                    continue
-            if not procs:
-                procs = list(DEFAULT_LINUX_PROCS)
+            procs = list(self._memory_processes.get(hostname, []))
 
         # Inspect each process
         analyzed_procs = []
@@ -159,7 +238,7 @@ class ProcessMonitoringService:
         self._memory_processes[hostname] = analyzed_procs
 
         # Inspect services
-        services = self._memory_services.get(hostname, list(DEFAULT_SYSTEMD_SERVICES))
+        services = self._memory_services.get(hostname, [])
         for s in services:
             s_alert = ProcessAnalyzer.inspect_service(s)
             if s_alert:
@@ -226,13 +305,19 @@ class ProcessMonitoringService:
 
     def list_processes(
         self,
-        hostname: str = "prac-server",
+        hostname: str = "localhost",
         suspicious_only: bool = False,
         sort_by: str = "cpu",
         limit: int = 50
     ) -> List[Dict[str, Any]]:
         """List running processes with sorting and filtering."""
-        procs = self._memory_processes.get(hostname, list(DEFAULT_LINUX_PROCS))
+        if self._is_local_host(hostname):
+            host_key = "localhost"
+            if host_key not in self._memory_processes:
+                self.scan_host(host_key)
+            procs = self._memory_processes.get(host_key, [])
+        else:
+            procs = self._memory_processes.get(hostname, [])
         if suspicious_only:
             procs = [p for p in procs if p.get("is_suspicious", False)]
 
@@ -243,9 +328,15 @@ class ProcessMonitoringService:
 
         return procs[:limit]
 
-    def list_services(self, hostname: str = "prac-server", failed_only: bool = False) -> List[Dict[str, Any]]:
-        """List systemd services for host."""
-        services = self._memory_services.get(hostname, list(DEFAULT_SYSTEMD_SERVICES))
+    def list_services(self, hostname: str = "localhost", failed_only: bool = False) -> List[Dict[str, Any]]:
+        """List OS services for host."""
+        if self._is_local_host(hostname):
+            host_key = "localhost"
+            if host_key not in self._memory_services:
+                self.scan_host(host_key)
+            services = self._memory_services.get(host_key, [])
+        else:
+            services = self._memory_services.get(hostname, [])
         if failed_only:
             services = [s for s in services if s.get("is_failed", False) or s.get("active_state") == "failed"]
         return services
@@ -254,13 +345,14 @@ class ProcessMonitoringService:
         """Retrieve emitted process security alerts."""
         alerts = list(self._memory_alerts)
         if hostname:
-            alerts = [a for a in alerts if a.get("hostname") == hostname]
+            host_key = "localhost" if self._is_local_host(hostname) else hostname
+            alerts = [a for a in alerts if a.get("hostname") in {hostname, host_key}]
         return alerts[-limit:]
 
-    def get_stats(self, hostname: str = "prac-server") -> Dict[str, Any]:
+    def get_stats(self, hostname: str = "localhost") -> Dict[str, Any]:
         """Summary metrics for Process & Service Monitoring."""
-        procs = self._memory_processes.get(hostname, list(DEFAULT_LINUX_PROCS))
-        services = self._memory_services.get(hostname, list(DEFAULT_SYSTEMD_SERVICES))
+        procs = self.list_processes(hostname=hostname, limit=1000)
+        services = self.list_services(hostname=hostname)
         alerts = self.list_alerts(hostname=hostname)
 
         high_cpu_count = sum(1 for p in procs if float(p.get("cpu_percent", 0.0)) > 50.0)

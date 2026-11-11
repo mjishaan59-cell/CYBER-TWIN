@@ -75,10 +75,16 @@ def test_fleet_manager_update_and_ping():
     assert updated is not None
     assert updated["status"] == "DEGRADED"
 
+    local_probe = fleet_manager.ping_server("localhost")
+    assert local_probe["hostname"] == "localhost"
+    assert local_probe["is_reachable"] is True
+    assert local_probe["status"] == "ONLINE"
+
     probe = fleet_manager.ping_server("test-analytics-01")
     assert probe["hostname"] == "test-analytics-01"
     assert "latency_ms" in probe
-    assert probe["is_reachable"] is True
+    assert probe["is_reachable"] is False
+    assert probe["status"] == "OFFLINE"
 
 
 def test_fleet_manager_health_aggregation():

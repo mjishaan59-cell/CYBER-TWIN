@@ -2,7 +2,22 @@
 // AUTHENTICATION & GLOBAL CONFIG
 // ============================================================
 
-const API = "/api";
+const API = (() => {
+    const params = new URLSearchParams(window.location.search || "");
+    const customApi = params.get("api");
+    if (customApi) {
+        return customApi.replace(/\/+$/, "");
+    }
+    if (window.location.protocol === "file:") {
+        return "http://127.0.0.1:8000/api";
+    }
+    const devStaticPorts = new Set(["5500", "5501", "3000", "5173", "4200", "8080"]);
+    if (devStaticPorts.has(window.location.port)) {
+        const host = window.location.hostname || "127.0.0.1";
+        return `http://${host}:8000/api`;
+    }
+    return "/api";
+})();
 const TOKEN_KEY = "cyber_digital_twin_access_token";
 
 const ROLE_KEY =
@@ -91,6 +106,7 @@ function decodeJwtPayload(
 }
 
 let refreshIntervals = [];
+let currentFleetHost = "localhost";
 
 
 let dashboardInitialized = false;
@@ -272,9 +288,19 @@ async function apiFetch(
     }
 
 
+    const resolvedUrl = (
+        typeof url === "string" &&
+        url.startsWith("/") &&
+        !url.startsWith(`${API}/`) &&
+        url !== API &&
+        !url.startsWith("/api/")
+    )
+        ? `${API}${url}`
+        : url;
+
     const response =
         await fetch(
-            url,
+            resolvedUrl,
             {
                 ...options,
                 headers
@@ -303,36 +329,54 @@ async function login(
     password
 ) {
 
-    const response =
-        await fetch(
-            `${API}/auth/login`,
-            {
-                method: "POST",
+    let response;
+    try {
+        response =
+            await fetch(
+                `${API}/auth/login`,
+                {
+                    method: "POST",
 
-                headers: {
-                    "Content-Type":
-                        "application/json"
-                },
+                    headers: {
+                        "Content-Type":
+                            "application/json"
+                    },
 
-                body: JSON.stringify(
-                    {
-                        username,
-                        password
-                    }
-                )
-            }
+                    body: JSON.stringify(
+                        {
+                            username,
+                            password
+                        }
+                    )
+                }
+            );
+    } catch (networkErr) {
+        throw new Error(
+            `Cannot connect to backend API (${API}). Verify the server is running.`
         );
+    }
 
 
-    const data =
-        await response.json();
+    const rawText =
+        await response.text();
+
+    let data = {};
+    if (rawText) {
+        try {
+            data = JSON.parse(rawText);
+        } catch (parseErr) {
+            data = {
+                detail: rawText.slice(0, 180)
+            };
+        }
+    }
 
 
     if (!response.ok) {
 
         throw new Error(
             data.detail ||
-            "Login failed"
+            `Login failed (HTTP ${response.status})`
         );
 
     }
@@ -4578,8 +4622,9 @@ function escapeHtml(str) {
 let predictiveForecastChartInstance = null;
 
 async function loadPredictiveAnalytics() {
+    const activeHost = currentFleetHost || "localhost";
     try {
-        const res = await apiFetch("/predictive-analytics/forecast?hostname=prac-server");
+        const res = await apiFetch(`/predictive-analytics/forecast?hostname=${encodeURIComponent(activeHost)}`);
         if (!res || !res.ok) return;
 
         const data = await res.json();
@@ -4754,9 +4799,10 @@ function renderPredictiveChart(cpuForecast, memForecast) {
 // ============================================================
 
 async function loadFimData() {
+    const activeHost = currentFleetHost || "localhost";
     try {
         // 1. Load FIM Stats
-        const statsRes = await apiFetch("/fim/stats?hostname=prac-server");
+        const statsRes = await apiFetch(`/fim/stats?hostname=${encodeURIComponent(activeHost)}`);
         if (statsRes && statsRes.ok) {
             const stats = await statsRes.json();
             const baseCountEl = document.getElementById("fimBaselinedCount");
@@ -4779,7 +4825,7 @@ async function loadFimData() {
         }
 
         // 2. Load Events Table
-        const eventsRes = await apiFetch("/fim/events?limit=25");
+        const eventsRes = await apiFetch(`/fim/events?hostname=${encodeURIComponent(activeHost)}&limit=25`);
         const tbody = document.getElementById("fimEventsTable");
         if (!tbody) return;
 
@@ -4821,7 +4867,7 @@ async function loadFimData() {
 
                 tr.innerHTML = `
                     <td style="font-size: 12px; color: #64748b;">${escapeHtml(timeStr)}</td>
-                    <td style="font-weight: 500;">${escapeHtml(ev.hostname || "prac-server")}</td>
+                    <td style="font-weight: 500;">${escapeHtml(ev.hostname || activeHost)}</td>
                     <td style="font-family: monospace; font-weight: bold; color: #1e293b;">${escapeHtml(ev.file_path)}</td>
                     <td><span style="color: white; background: ${typeColor}; padding: 2px 7px; border-radius: 4px; font-size: 11px; font-weight: bold;">${escapeHtml(ev.change_type)}</span></td>
                     <td><span style="color: white; background: ${sevColor}; padding: 2px 7px; border-radius: 4px; font-size: 11px; font-weight: bold;">${escapeHtml(ev.severity)}</span></td>
@@ -4837,11 +4883,12 @@ async function loadFimData() {
 }
 
 async function triggerFimScan() {
+    const activeHost = currentFleetHost || "localhost";
     try {
         const res = await apiFetch("/fim/scan", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ hostname: "prac-server" })
+            body: JSON.stringify({ hostname: activeHost })
         });
         if (res && res.ok) {
             const data = await res.json();
@@ -4860,9 +4907,11 @@ async function triggerFimScan() {
 // ============================================================
 
 async function loadProcessData() {
+    const activeHost = currentFleetHost || "localhost";
+    const encodedHost = encodeURIComponent(activeHost);
     try {
         // 1. Fetch Stats
-        const statsRes = await apiFetch("/processes/stats?hostname=prac-server");
+        const statsRes = await apiFetch(`/processes/stats?hostname=${encodedHost}`);
         if (statsRes && statsRes.ok) {
             const stats = await statsRes.json();
             const totalEl = document.getElementById("procTotalCount");
@@ -4877,7 +4926,7 @@ async function loadProcessData() {
         }
 
         // 2. Fetch Top Processes
-        const procRes = await apiFetch("/processes?hostname=prac-server&limit=15");
+        const procRes = await apiFetch(`/processes?hostname=${encodedHost}&limit=15`);
         const procTable = document.getElementById("topProcessesTable");
         if (procRes && procRes.ok && procTable) {
             const procs = await procRes.json();
@@ -4911,7 +4960,7 @@ async function loadProcessData() {
         }
 
         // 3. Fetch Alerts
-        const alertRes = await apiFetch("/processes/alerts?hostname=prac-server&limit=10");
+        const alertRes = await apiFetch(`/processes/alerts?hostname=${encodedHost}&limit=10`);
         const alertTable = document.getElementById("procAlertsTable");
         if (alertRes && alertRes.ok && alertTable) {
             const alerts = await alertRes.json();
@@ -4928,7 +4977,7 @@ async function loadProcessData() {
 
                     tr.innerHTML = `
                         <td style="font-size: 12px; color: #64748b;">${escapeHtml(timeStr)}</td>
-                        <td>${escapeHtml(al.hostname || "prac-server")}</td>
+                        <td>${escapeHtml(al.hostname || activeHost)}</td>
                         <td style="font-weight: 500;">${escapeHtml(al.alert_type)}</td>
                         <td style="font-family: monospace; font-weight: bold;">${escapeHtml(al.process_name || "-")} (PID: ${al.pid || "-"})</td>
                         <td><span style="color: white; background: ${sevColor}; padding: 2px 7px; border-radius: 4px; font-size: 11px; font-weight: bold;">${escapeHtml(al.severity)}</span></td>
@@ -4941,7 +4990,7 @@ async function loadProcessData() {
         }
 
         // 4. Fetch Systemd Services
-        const servRes = await apiFetch("/processes/services?hostname=prac-server");
+        const servRes = await apiFetch(`/processes/services?hostname=${encodedHost}`);
         const servTable = document.getElementById("systemdServicesTable");
         if (servRes && servRes.ok && servTable) {
             const servs = await servRes.json();
@@ -4956,7 +5005,7 @@ async function loadProcessData() {
                                         s.active_state === "active" ? "#16a34a" : "#64748b";
 
                     tr.innerHTML = `
-                        <td>${escapeHtml(s.hostname || "prac-server")}</td>
+                        <td>${escapeHtml(s.hostname || activeHost)}</td>
                         <td style="font-family: monospace; font-weight: bold;">${escapeHtml(s.service_name || s.unit_name)}</td>
                         <td>${escapeHtml(s.load_state || "loaded")}</td>
                         <td><span style="color: ${statusColor}; font-weight: bold;">${escapeHtml(s.active_state)}</span></td>
@@ -4975,11 +5024,12 @@ async function loadProcessData() {
 }
 
 async function triggerProcessScan() {
+    const activeHost = currentFleetHost || "localhost";
     try {
         const res = await apiFetch("/processes/scan", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ hostname: "prac-server" })
+            body: JSON.stringify({ hostname: activeHost })
         });
         if (res && res.ok) {
             const data = await res.json();
@@ -5010,9 +5060,11 @@ function formatBytes(bytes) {
 }
 
 async function loadNetworkData() {
+    const activeHost = currentFleetHost || "localhost";
+    const encodedHost = encodeURIComponent(activeHost);
     try {
         // 1. Fetch Stats
-        const statsRes = await apiFetch("/network/stats?hostname=prac-server");
+        const statsRes = await apiFetch(`/network/stats?hostname=${encodedHost}`);
         if (statsRes && statsRes.ok) {
             const stats = await statsRes.json();
             const activeEl = document.getElementById("netActiveConnCount");
@@ -5031,7 +5083,7 @@ async function loadNetworkData() {
         }
 
         // 2. Fetch Listening Ports
-        const portsRes = await apiFetch("/network/ports?hostname=prac-server");
+        const portsRes = await apiFetch(`/network/ports?hostname=${encodedHost}`);
         const portsTable = document.getElementById("listeningPortsTable");
         if (portsRes && portsRes.ok && portsTable) {
             const ports = await portsRes.json();
@@ -5047,7 +5099,7 @@ async function loadNetworkData() {
                                       p.risk_level === "MEDIUM" ? "#d97706" : "#16a34a";
 
                     tr.innerHTML = `
-                        <td>${escapeHtml(p.hostname || "prac-server")}</td>
+                        <td>${escapeHtml(p.hostname || activeHost)}</td>
                         <td><span style="font-weight: bold; text-transform: uppercase;">${escapeHtml(p.protocol)}</span></td>
                         <td style="font-family: monospace;">${escapeHtml(p.bind_address)}</td>
                         <td style="font-family: monospace; font-weight: bold; color: #1e293b;">${p.port}</td>
@@ -5062,7 +5114,7 @@ async function loadNetworkData() {
         }
 
         // 3. Fetch Active Connections
-        const connRes = await apiFetch("/network/connections?hostname=prac-server&limit=20");
+        const connRes = await apiFetch(`/network/connections?hostname=${encodedHost}&limit=20`);
         const connTable = document.getElementById("activeConnectionsTable");
         if (connRes && connRes.ok && connTable) {
             const conns = await connRes.json();
@@ -5091,7 +5143,7 @@ async function loadNetworkData() {
         }
 
         // 4. Fetch Network Alerts
-        const alertRes = await apiFetch("/network/alerts?hostname=prac-server&limit=10");
+        const alertRes = await apiFetch(`/network/alerts?hostname=${encodedHost}&limit=10`);
         const alertTable = document.getElementById("netAlertsTable");
         if (alertRes && alertRes.ok && alertTable) {
             const alerts = await alertRes.json();
@@ -5109,7 +5161,7 @@ async function loadNetworkData() {
 
                     tr.innerHTML = `
                         <td style="font-size: 12px; color: #64748b;">${escapeHtml(timeStr)}</td>
-                        <td>${escapeHtml(al.hostname || "prac-server")}</td>
+                        <td>${escapeHtml(al.hostname || activeHost)}</td>
                         <td style="font-weight: 500;">${escapeHtml(al.alert_type)}</td>
                         <td style="font-family: monospace; font-size: 11px;">${escapeHtml(endpoints)}</td>
                         <td><span style="text-transform: uppercase; font-size: 11px;">${escapeHtml(al.protocol || "TCP")}</span></td>
@@ -5123,7 +5175,7 @@ async function loadNetworkData() {
         }
 
         // 5. Fetch Interfaces
-        const ifaceRes = await apiFetch("/network/interfaces?hostname=prac-server");
+        const ifaceRes = await apiFetch(`/network/interfaces?hostname=${encodedHost}`);
         const ifaceTable = document.getElementById("networkInterfacesTable");
         if (ifaceRes && ifaceRes.ok && ifaceTable) {
             const ifaces = await ifaceRes.json();
@@ -5155,11 +5207,12 @@ async function loadNetworkData() {
 }
 
 async function triggerNetworkScan() {
+    const activeHost = currentFleetHost || "localhost";
     try {
         const res = await apiFetch("/network/scan", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ hostname: "prac-server" })
+            body: JSON.stringify({ hostname: activeHost })
         });
         if (res && res.ok) {
             const data = await res.json();
@@ -5177,7 +5230,7 @@ async function triggerNetworkScan() {
 // PHASE 27 - MULTI-SERVER EXPANSION & FLEET MANAGEMENT
 // ============================================================
 
-let currentFleetHost = "prac-server";
+// (currentFleetHost initialized near top as "localhost")
 
 async function loadFleetData() {
     try {
@@ -5264,11 +5317,13 @@ async function loadFleetData() {
 }
 
 function switchActiveHost(hostname) {
-    currentFleetHost = hostname;
+    currentFleetHost = hostname || "localhost";
     const selector = document.getElementById("fleetHostSelector");
-    if (selector) selector.value = hostname;
-    console.log(`Switched active monitoring target to: ${hostname}`);
-    // Trigger refreshes for active host
+    if (selector) selector.value = currentFleetHost;
+    console.log(`Switched active monitoring target to: ${currentFleetHost}`);
+    // Trigger refreshes for active host across all host-scoped panels
+    loadPredictiveAnalytics();
+    loadFimData();
     loadProcessData();
     loadNetworkData();
 }
@@ -5279,7 +5334,7 @@ async function pingActiveServer() {
 
 async function pingServerDirect(hostname) {
     try {
-        const res = await apiFetch(`/multihost/servers/${hostname}/ping`, {
+        const res = await apiFetch(`/multihost/servers/${encodeURIComponent(hostname)}/ping`, {
             method: "POST"
         });
         if (res && res.ok) {
@@ -5352,7 +5407,7 @@ async function loadSimulationData() {
 async function triggerSimulationRun() {
     const scenarioSelector = document.getElementById("simScenarioSelector");
     const scenarioId = scenarioSelector ? scenarioSelector.value : "SSH_BRUTE_FORCE";
-    const targetHost = currentFleetHost || "prac-server";
+    const targetHost = currentFleetHost || "localhost";
 
     try {
         const res = await apiFetch("/simulation/run", {
@@ -5527,7 +5582,7 @@ async function triggerPlaybookExecution() {
     const pbId = pbSelector ? pbSelector.value : "BLOCK_MALICIOUS_IP";
     const mode = modeSelector ? modeSelector.value : "DRY_RUN";
     const paramVal = paramInput ? paramInput.value.trim() : "";
-    const targetHost = currentFleetHost || "prac-server";
+    const targetHost = currentFleetHost || "localhost";
 
     // Map parameters based on playbook
     const params = {};

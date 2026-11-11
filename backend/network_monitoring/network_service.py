@@ -106,7 +106,7 @@ class NetworkMonitoringService:
         self._memory_alerts: List[Dict[str, Any]] = []
         if is_database_online():
             self._ensure_tables()
-        self._init_defaults("prac-server")
+        self._init_defaults("localhost")
 
     def _ensure_tables(self):
         sql = """
@@ -186,12 +186,17 @@ class NetworkMonitoringService:
             pass
 
     def _init_defaults(self, hostname: str):
-        self._memory_interfaces[hostname] = list(DEFAULT_INTERFACES)
-        self.scan_network(hostname=hostname)
+        """Initialize network interfaces and socket baseline from live OS telemetry."""
+        if self._is_local_host(hostname):
+            self.scan_network(hostname)
+            return
+        self._memory_interfaces[hostname] = []
+        self._memory_connections[hostname] = []
+        self._memory_ports[hostname] = []
 
     def scan_network(
         self,
-        hostname: str = "prac-server",
+        hostname: str = "localhost",
         custom_connections: Optional[List[Dict[str, Any]]] = None
     ) -> Dict[str, Any]:
         """
@@ -428,29 +433,48 @@ class NetworkMonitoringService:
             "scanned_at": datetime.now(timezone.utc).isoformat()
         }
 
-    def list_interfaces(self, hostname: str = "prac-server") -> List[Dict[str, Any]]:
+    @staticmethod
+    def _is_local_host(hostname: str) -> bool:
+        import socket
+        norm = (hostname or "").strip().lower()
+        return norm in {"", "localhost", "127.0.0.1", "::1", socket.gethostname().lower()}
+
+    def _ensure_local_scanned(self, hostname: str) -> str:
+        if self._is_local_host(hostname):
+            host_key = "localhost"
+            if host_key not in self._memory_interfaces:
+                self.scan_network(host_key)
+            return host_key
+        return hostname
+
+    def list_interfaces(self, hostname: str = "localhost") -> List[Dict[str, Any]]:
         """List current network interfaces for host."""
-        return self._memory_interfaces.get(hostname, list(DEFAULT_INTERFACES))
+        host_key = self._ensure_local_scanned(hostname)
+        if host_key in self._memory_interfaces:
+            return self._memory_interfaces[host_key]
+        return self._memory_interfaces.get(hostname, [])
 
     def list_connections(
         self,
-        hostname: str = "prac-server",
+        hostname: str = "localhost",
         suspicious_only: bool = False,
         limit: int = 50
     ) -> List[Dict[str, Any]]:
         """List active socket connections with optional threat filter."""
-        conns = self._memory_connections.get(hostname, list(DEFAULT_CONNECTIONS))
+        host_key = self._ensure_local_scanned(hostname)
+        conns = self._memory_connections.get(host_key, self._memory_connections.get(hostname, []))
         if suspicious_only:
             conns = [c for c in conns if c.get("is_suspicious", False)]
         return conns[:limit]
 
     def list_listening_ports(
         self,
-        hostname: str = "prac-server",
+        hostname: str = "localhost",
         unauthorized_only: bool = False
     ) -> List[Dict[str, Any]]:
         """List listening ports and binding services."""
-        ports = self._memory_ports.get(hostname, [])
+        host_key = self._ensure_local_scanned(hostname)
+        ports = self._memory_ports.get(host_key, self._memory_ports.get(hostname, []))
         if unauthorized_only:
             ports = [p for p in ports if not p.get("is_authorized", True)]
         return ports
@@ -463,14 +487,16 @@ class NetworkMonitoringService:
         """List emitted network security alerts."""
         alerts = list(self._memory_alerts)
         if hostname:
-            alerts = [a for a in alerts if a.get("hostname") == hostname]
+            host_key = "localhost" if self._is_local_host(hostname) else hostname
+            alerts = [a for a in alerts if a.get("hostname") in {hostname, host_key}]
         return alerts[-limit:]
 
-    def get_stats(self, hostname: str = "prac-server") -> Dict[str, Any]:
+    def get_stats(self, hostname: str = "localhost") -> Dict[str, Any]:
         """Summary KPI metrics for Network Security."""
-        interfaces = self._memory_interfaces.get(hostname, list(DEFAULT_INTERFACES))
-        conns = self._memory_connections.get(hostname, list(DEFAULT_CONNECTIONS))
-        ports = self._memory_ports.get(hostname, [])
+        host_key = self._ensure_local_scanned(hostname)
+        interfaces = self._memory_interfaces.get(host_key, self._memory_interfaces.get(hostname, []))
+        conns = self._memory_connections.get(host_key, self._memory_connections.get(hostname, []))
+        ports = self._memory_ports.get(host_key, self._memory_ports.get(hostname, []))
         alerts = self.list_alerts(hostname=hostname)
 
         total_bytes_sent = sum(i.get("bytes_sent", 0) for i in interfaces)
