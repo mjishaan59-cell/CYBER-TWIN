@@ -9,7 +9,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import text
 import pandas as pd
 
-from backend.database import engine
+from backend.database import engine, is_database_online
 from backend.auth.dependencies import get_current_user, require_roles
 from backend.analytics.predictive_engine import predictive_engine
 
@@ -21,6 +21,9 @@ router = APIRouter(
 
 def fetch_host_metrics(hostname: str, limit: int = 100) -> List[Dict[str, Any]]:
     """Retrieve recent time-series telemetry for a host."""
+    if not is_database_online():
+        return []
+
     try:
         with engine.connect() as conn:
             rows = conn.execute(

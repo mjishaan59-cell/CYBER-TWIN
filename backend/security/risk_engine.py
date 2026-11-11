@@ -2,7 +2,7 @@ from datetime import timedelta
 
 from sqlalchemy import text
 
-from backend.database import engine
+from backend.database import engine, is_database_online
 
 
 # ============================================================
@@ -171,7 +171,15 @@ def analyze_ssh_events(event_ids=None):
     if event_ids is not None and not event_ids:
         return []
 
-    with engine.connect() as connection:
+    if not is_database_online():
+        return []
+
+    try:
+        connection = engine.connect()
+    except Exception:
+        return []
+
+    with connection:
 
         if event_ids is None:
 

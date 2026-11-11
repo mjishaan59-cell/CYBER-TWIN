@@ -3,7 +3,7 @@ from datetime import timedelta
 from sqlalchemy import text
 
 from backend.ai.incident_confidence import calculate_incident_confidence
-from backend.database import engine
+from backend.database import engine, is_database_online
 
 
 # ============================================================
@@ -24,7 +24,15 @@ def detect_ssh_incidents():
 
     incidents = []
 
-    with engine.connect() as connection:
+    if not is_database_online():
+        return []
+
+    try:
+        connection = engine.connect()
+    except Exception:
+        return []
+
+    with connection:
 
         result = connection.execute(
             text(

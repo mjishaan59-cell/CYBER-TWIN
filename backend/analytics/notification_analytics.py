@@ -1,6 +1,6 @@
 from sqlalchemy import text
 
-from backend.database import engine
+from backend.database import engine, is_database_online
 
 
 ALLOWED_PERIODS = {
@@ -8,6 +8,32 @@ ALLOWED_PERIODS = {
     "weekly": "week",
     "monthly": "month"
 }
+
+
+def _empty_notification_analytics(days: int, period: str):
+    return {
+        "period": period,
+        "days": days,
+        "event_notifications": {
+            "summary": {
+                "total_recorded_successes": 0,
+            },
+            "by_channel": [],
+            "by_severity": [],
+            "trend": [],
+        },
+        "incident_deliveries": {
+            "summary": {
+                "total_records": 0,
+                "sent": 0,
+                "failed": 0,
+                "pending": 0,
+                "total_attempts": 0,
+            },
+            "by_channel": [],
+            "by_severity": [],
+        },
+    }
 
 
 def get_notification_analytics(
@@ -23,7 +49,15 @@ def get_notification_analytics(
 
     db_period = ALLOWED_PERIODS[period]
 
-    with engine.connect() as connection:
+    if not is_database_online():
+        return _empty_notification_analytics(days, period)
+
+    try:
+        connection = engine.connect()
+    except Exception:
+        return _empty_notification_analytics(days, period)
+
+    with connection:
 
         # ==================================================
         # 1. EVENT NOTIFICATION SUMMARY

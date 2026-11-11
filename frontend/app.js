@@ -604,29 +604,8 @@ if (responseSection) {
 
     loadDashboard();
 
-    refreshIntervals.push(
-        setInterval(
-            loadDashboard,
-            5000
-        )
-    );
-
     // Infrastructure health refresh
     loadInfrastructureHealth();
-
-    refreshIntervals.push(
-        setInterval(
-            loadInfrastructureHealth,
-            5000
-        )
-    );
-
-    refreshIntervals.push(
-        setInterval(
-            loadHistory,
-            5000
-        )
-    );
 
     loadHistory();
 
@@ -747,182 +726,38 @@ function startAutoRefresh() {
 
     refreshIntervals = [];
 
-
-    refreshIntervals.push(
-        setInterval(
-            loadDashboard,
-            5000
-        )
-    );
-
-
-    refreshIntervals.push(
-        setInterval(
-            loadDeliveryHealth,
-            5000
-        )
-    );
-
-    refreshIntervals.push(
-        setInterval(
-            loadInfrastructureHealth,
-            5000
-        )
-    );
-
-    refreshIntervals.push(
-        setInterval(
-            loadHistory,
-            5000
-        )
-    );
-
-
-    refreshIntervals.push(
-        setInterval(
-            loadAnomalies,
-            5000
-        )
-    );
-
-
-    refreshIntervals.push(
-        setInterval(
-            loadSSHEvents,
-            5000
-        )
-    );
-
-
-    refreshIntervals.push(
-        setInterval(
-            loadSecurityAlerts,
-            5000
-        )
-    );
-
-    refreshIntervals.push(
-        setInterval(
-            loadNotificationHistory,
-            5000
-        )
-    );
-
-
-    refreshIntervals.push(
-        setInterval(
-            loadIncidentReminders,
-            5000
-        )
-    );
-
-
-    refreshIntervals.push(
-        setInterval(
-            loadSecurityIncidents,
-            5000
-        )
-    );
-
-
-    refreshIntervals.push(
-        setInterval(
-            loadSecurityCampaigns,
-            5000
-        )
-    );
-
-
-    refreshIntervals.push(
-        setInterval(
-            loadSecurityResponses,
-            5000
-        )
-    );
-
+    const pollTasks = [
+        [loadDashboard, 10000],
+        [loadDeliveryHealth, 15000],
+        [loadInfrastructureHealth, 15000],
+        [loadHistory, 10000],
+        [loadAnomalies, 15000],
+        [loadSSHEvents, 15000],
+        [loadSecurityAlerts, 15000],
+        [loadNotificationHistory, 20000],
+        [loadIncidentReminders, 15000],
+        [loadSecurityIncidents, 15000],
+        [loadSecurityCampaigns, 20000],
+        [loadSecurityResponses, 20000],
+        [loadSecurityResponseAudit, 20000],
+        [loadSecurityDecisions, 20000],
+        [loadThreatIntelligence, 30000],
+        [loadPredictiveAnalytics, 30000],
+        [loadFimData, 30000],
+        [loadProcessData, 15000],
+        [loadNetworkData, 15000],
+        [loadFleetData, 30000],
+        [loadSimulationData, 30000],
+        [loadIncidentResponseData, 30000],
+    ];
 
     if (currentUserRole === "admin") {
-
-        refreshIntervals.push(
-            setInterval(
-                loadResponseExecution,
-                5000
-            )
-        );
-
+        pollTasks.push([loadResponseExecution, 20000]);
     }
 
-
-    refreshIntervals.push(
-        setInterval(
-            loadSecurityResponseAudit,
-            5000
-        )
-    );
-
-
-    refreshIntervals.push(
-        setInterval(
-            loadSecurityDecisions,
-            5000
-        )
-    );
-
-    refreshIntervals.push(
-        setInterval(
-            loadThreatIntelligence,
-            10000
-        )
-    );
-
-    refreshIntervals.push(
-        setInterval(
-            loadPredictiveAnalytics,
-            10000
-        )
-    );
-
-    refreshIntervals.push(
-        setInterval(
-            loadFimData,
-            10000
-        )
-    );
-
-    refreshIntervals.push(
-        setInterval(
-            loadProcessData,
-            10000
-        )
-    );
-
-    refreshIntervals.push(
-        setInterval(
-            loadNetworkData,
-            10000
-        )
-    );
-
-    refreshIntervals.push(
-        setInterval(
-            loadFleetData,
-            15000
-        )
-    );
-
-    refreshIntervals.push(
-        setInterval(
-            loadSimulationData,
-            20000
-        )
-    );
-
-    refreshIntervals.push(
-        setInterval(
-            loadIncidentResponseData,
-            15000
-        )
-    );
+    pollTasks.forEach(([fn, delay]) => {
+        refreshIntervals.push(setInterval(fn, delay));
+    });
 
 }
 

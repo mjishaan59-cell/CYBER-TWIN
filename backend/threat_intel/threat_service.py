@@ -107,78 +107,83 @@ class ThreatIntelligenceService:
             "severity = EXCLUDED.severity"
         )
 
-        try:
-            with engine.begin() as conn:
-                for ioc in indicators:
-                    try:
-                        val = ioc["indicator_value"].strip()
-                        ioc_type = ioc.get("indicator_type") or detect_indicator_type(val)
-                        threat_type = ioc.get("threat_type", "UNKNOWN")
-                        severity = ioc.get("severity", "MEDIUM")
-                        conf = int(ioc.get("confidence_score", 70))
-                        feed = ioc.get("source_feed", "Manual Entry")
-                        mitre_id = ioc.get("mitre_attack_id")
-                        mitre_tactic = ioc.get("mitre_tactic")
-                        if not mitre_id:
-                            m = map_threat_to_mitre(threat_type)
-                            mitre_id = m["attack_id"]
-                            mitre_tactic = m["tactic"]
-                        desc = ioc.get("description", "")
-                        tags = ioc.get("tags", "")
+        if is_database_online():
+            try:
+                with engine.begin() as conn:
+                    for ioc in indicators:
+                        try:
+                            val = ioc["indicator_value"].strip()
+                            ioc_type = ioc.get("indicator_type") or detect_indicator_type(val)
+                            threat_type = ioc.get("threat_type", "UNKNOWN")
+                            severity = ioc.get("severity", "MEDIUM")
+                            conf = int(ioc.get("confidence_score", 70))
+                            feed = ioc.get("source_feed", "Manual Entry")
+                            mitre_id = ioc.get("mitre_attack_id")
+                            mitre_tactic = ioc.get("mitre_tactic")
+                            if not mitre_id:
+                                m = map_threat_to_mitre(threat_type)
+                                mitre_id = m["attack_id"]
+                                mitre_tactic = m["tactic"]
+                            desc = ioc.get("description", "")
+                            tags = ioc.get("tags", "")
 
-                        sql = f"""
-                        INSERT INTO threat_indicators
-                        (indicator_value, indicator_type, threat_type, severity, confidence_score,
-                         source_feed, mitre_attack_id, mitre_tactic, description, tags, is_active)
-                        VALUES
-                        (:val, :type, :threat, :severity, :conf, :feed, :mitre_id, :mitre_tactic, :desc, :tags, TRUE)
-                        {upsert_clause};
-                        """
-                        conn.execute(text(sql), {
-                            "val": val,
-                            "type": ioc_type,
-                            "threat": threat_type,
-                            "severity": severity,
-                            "conf": conf,
-                            "feed": feed,
-                            "mitre_id": mitre_id,
-                            "mitre_tactic": mitre_tactic,
-                            "desc": desc,
-                            "tags": tags
-                        })
-                        inserted += 1
-                    except Exception:
-                        continue
-        except Exception:
-            # When persistent DB is offline, cache in fallback seed corpus
-            for ioc in indicators:
-                val = ioc["indicator_value"].strip()
-                # Update existing or append
-                existing = next((s for s in FALLBACK_SEED_IOCS if s["indicator_value"] == val), None)
-                if existing:
-                    existing.update(ioc)
-                else:
-                    FALLBACK_SEED_IOCS.append(ioc)
-                inserted += 1
+                            sql = f"""
+                            INSERT INTO threat_indicators
+                            (indicator_value, indicator_type, threat_type, severity, confidence_score,
+                             source_feed, mitre_attack_id, mitre_tactic, description, tags, is_active)
+                            VALUES
+                            (:val, :type, :threat, :severity, :conf, :feed, :mitre_id, :mitre_tactic, :desc, :tags, TRUE)
+                            {upsert_clause};
+                            """
+                            conn.execute(text(sql), {
+                                "val": val,
+                                "type": ioc_type,
+                                "threat": threat_type,
+                                "severity": severity,
+                                "conf": conf,
+                                "feed": feed,
+                                "mitre_id": mitre_id,
+                                "mitre_tactic": mitre_tactic,
+                                "desc": desc,
+                                "tags": tags
+                            })
+                            inserted += 1
+                        except Exception:
+                            continue
+                return inserted
+            except Exception:
+                pass
+
+        # When persistent DB is offline, cache in fallback seed corpus
+        for ioc in indicators:
+            val = ioc["indicator_value"].strip()
+            existing = next((s for s in FALLBACK_SEED_IOCS if s["indicator_value"] == val), None)
+            if existing:
+                existing.update(ioc)
+            else:
+                FALLBACK_SEED_IOCS.append(ioc)
+            inserted += 1
 
         return inserted
 
     def lookup_indicator_dict(self, value: str) -> Optional[Dict[str, Any]]:
         """Fast lookup dictionary for an indicator."""
         clean_val = value.strip()
-        try:
-            with engine.connect() as conn:
-                row = conn.execute(
-                    text("SELECT * FROM threat_indicators WHERE indicator_value = :val AND is_active = TRUE"),
-                    {"val": clean_val}
-                ).mappings().first()
-                if row:
-                    return dict(row)
-        except Exception:
-            # Fallback to in-memory seed lookup if database connection fails
-            for seed in FALLBACK_SEED_IOCS:
-                if seed["indicator_value"].lower() == clean_val.lower():
-                    return dict(seed)
+        if is_database_online():
+            try:
+                with engine.connect() as conn:
+                    row = conn.execute(
+                        text("SELECT * FROM threat_indicators WHERE indicator_value = :val AND is_active = TRUE"),
+                        {"val": clean_val}
+                    ).mappings().first()
+                    if row:
+                        return dict(row)
+            except Exception:
+                pass
+        # Fallback to in-memory seed lookup if database is offline or query fails
+        for seed in FALLBACK_SEED_IOCS:
+            if seed["indicator_value"].lower() == clean_val.lower():
+                return dict(seed)
         return None
 
     def lookup(self, value: str, user: str = "system", context: str = "web_lookup") -> Dict[str, Any]:
@@ -289,20 +294,23 @@ class ThreatIntelligenceService:
             END, id DESC
         LIMIT :limit OFFSET :offset;
         """
-        try:
-            with engine.connect() as conn:
-                rows = conn.execute(text(sql), params).mappings().all()
-                return [dict(r) for r in rows]
-        except Exception:
-            # Return seed fallback filtered
-            results = []
-            for s in FALLBACK_SEED_IOCS:
-                if indicator_type and s["indicator_type"].upper() != indicator_type.upper():
-                    continue
-                if severity and s["severity"].upper() != severity.upper():
-                    continue
-                results.append(s)
-            return results[:limit]
+        if is_database_online():
+            try:
+                with engine.connect() as conn:
+                    rows = conn.execute(text(sql), params).mappings().all()
+                    return [dict(r) for r in rows]
+            except Exception:
+                pass
+
+        # Return seed fallback filtered
+        results = []
+        for s in FALLBACK_SEED_IOCS:
+            if indicator_type and s["indicator_type"].upper() != indicator_type.upper():
+                continue
+            if severity and s["severity"].upper() != severity.upper():
+                continue
+            results.append(s)
+        return results[:limit]
 
     def add_custom_indicator(self, data: Dict[str, Any]) -> Dict[str, Any]:
         """Manually add a threat indicator with validation and MITRE mapping."""
@@ -369,41 +377,44 @@ class ThreatIntelligenceService:
 
     def get_stats(self) -> Dict[str, Any]:
         """Aggregate statistical metrics for the threat intelligence dashboard."""
-        try:
-            with engine.connect() as conn:
-                total_iocs = conn.execute(text("SELECT COUNT(*) FROM threat_indicators WHERE is_active = TRUE")).scalar() or 0
-                critical_count = conn.execute(text("SELECT COUNT(*) FROM threat_indicators WHERE severity = 'CRITICAL' AND is_active = TRUE")).scalar() or 0
-                high_count = conn.execute(text("SELECT COUNT(*) FROM threat_indicators WHERE severity = 'HIGH' AND is_active = TRUE")).scalar() or 0
-                ip_count = conn.execute(text("SELECT COUNT(*) FROM threat_indicators WHERE indicator_type = 'IP' AND is_active = TRUE")).scalar() or 0
-                domain_count = conn.execute(text("SELECT COUNT(*) FROM threat_indicators WHERE indicator_type = 'DOMAIN' AND is_active = TRUE")).scalar() or 0
-                hash_count = conn.execute(text("SELECT COUNT(*) FROM threat_indicators WHERE indicator_type = 'SHA256' AND is_active = TRUE")).scalar() or 0
-                lookups_total = conn.execute(text("SELECT COUNT(*) FROM threat_lookup_audit")).scalar() or 0
-                lookups_matched = conn.execute(text("SELECT COUNT(*) FROM threat_lookup_audit WHERE matched = TRUE")).scalar() or 0
+        if is_database_online():
+            try:
+                with engine.connect() as conn:
+                    total_iocs = conn.execute(text("SELECT COUNT(*) FROM threat_indicators WHERE is_active = TRUE")).scalar() or 0
+                    critical_count = conn.execute(text("SELECT COUNT(*) FROM threat_indicators WHERE severity = 'CRITICAL' AND is_active = TRUE")).scalar() or 0
+                    high_count = conn.execute(text("SELECT COUNT(*) FROM threat_indicators WHERE severity = 'HIGH' AND is_active = TRUE")).scalar() or 0
+                    ip_count = conn.execute(text("SELECT COUNT(*) FROM threat_indicators WHERE indicator_type = 'IP' AND is_active = TRUE")).scalar() or 0
+                    domain_count = conn.execute(text("SELECT COUNT(*) FROM threat_indicators WHERE indicator_type = 'DOMAIN' AND is_active = TRUE")).scalar() or 0
+                    hash_count = conn.execute(text("SELECT COUNT(*) FROM threat_indicators WHERE indicator_type = 'SHA256' AND is_active = TRUE")).scalar() or 0
+                    lookups_total = conn.execute(text("SELECT COUNT(*) FROM threat_lookup_audit")).scalar() or 0
+                    lookups_matched = conn.execute(text("SELECT COUNT(*) FROM threat_lookup_audit WHERE matched = TRUE")).scalar() or 0
 
-                return {
-                    "total_active_iocs": total_iocs,
-                    "critical_severity_count": critical_count,
-                    "high_severity_count": high_count,
-                    "ip_indicators": ip_count,
-                    "domain_indicators": domain_count,
-                    "hash_indicators": hash_count,
-                    "total_lookups": lookups_total,
-                    "threats_detected": lookups_matched,
-                    "mitre_techniques_cataloged": len(get_all_mitre_techniques())
-                }
-        except Exception:
-            # Fallback stats from seed
-            return {
-                "total_active_iocs": len(FALLBACK_SEED_IOCS),
-                "critical_severity_count": sum(1 for s in FALLBACK_SEED_IOCS if s["severity"] == "CRITICAL"),
-                "high_severity_count": sum(1 for s in FALLBACK_SEED_IOCS if s["severity"] == "HIGH"),
-                "ip_indicators": sum(1 for s in FALLBACK_SEED_IOCS if s["indicator_type"] == "IP"),
-                "domain_indicators": sum(1 for s in FALLBACK_SEED_IOCS if s["indicator_type"] == "DOMAIN"),
-                "hash_indicators": sum(1 for s in FALLBACK_SEED_IOCS if s["indicator_type"] == "SHA256"),
-                "total_lookups": 0,
-                "threats_detected": 0,
-                "mitre_techniques_cataloged": len(get_all_mitre_techniques())
-            }
+                    return {
+                        "total_active_iocs": total_iocs,
+                        "critical_severity_count": critical_count,
+                        "high_severity_count": high_count,
+                        "ip_indicators": ip_count,
+                        "domain_indicators": domain_count,
+                        "hash_indicators": hash_count,
+                        "total_lookups": lookups_total,
+                        "threats_detected": lookups_matched,
+                        "mitre_techniques_cataloged": len(get_all_mitre_techniques())
+                    }
+            except Exception:
+                pass
+
+        # Fallback stats from seed
+        return {
+            "total_active_iocs": len(FALLBACK_SEED_IOCS),
+            "critical_severity_count": sum(1 for s in FALLBACK_SEED_IOCS if s["severity"] == "CRITICAL"),
+            "high_severity_count": sum(1 for s in FALLBACK_SEED_IOCS if s["severity"] == "HIGH"),
+            "ip_indicators": sum(1 for s in FALLBACK_SEED_IOCS if s["indicator_type"] == "IP"),
+            "domain_indicators": sum(1 for s in FALLBACK_SEED_IOCS if s["indicator_type"] == "DOMAIN"),
+            "hash_indicators": sum(1 for s in FALLBACK_SEED_IOCS if s["indicator_type"] == "SHA256"),
+            "total_lookups": 0,
+            "threats_detected": 0,
+            "mitre_techniques_cataloged": len(get_all_mitre_techniques())
+        }
 
 
 # Singleton service instance

@@ -9,7 +9,7 @@ from backend.auth.jwt_handler import (
     revoke_access_token
 )
 from backend.auth.dependencies import get_current_user
-from backend.database import engine
+from backend.database import engine, is_database_online
 from backend.security.rate_limiter import limiter
 
 router = APIRouter(
@@ -54,6 +54,9 @@ class LoginRequest(BaseModel):
 
 
 def is_account_locked(username: str) -> bool:
+    if not is_database_online():
+        return False
+
     try:
         with engine.connect() as connection:
             record = connection.execute(
@@ -78,6 +81,9 @@ def is_account_locked(username: str) -> bool:
 
 
 def record_failed_login(username: str):
+    if not is_database_online():
+        return
+
     now = datetime.now(timezone.utc)
     try:
         with engine.begin() as connection:
@@ -139,6 +145,9 @@ def record_failed_login(username: str):
 
 
 def reset_login_attempts(username: str):
+    if not is_database_online():
+        return
+
     try:
         with engine.begin() as connection:
             connection.execute(
@@ -166,18 +175,19 @@ def login(
 
     user = None
     # 1. Attempt database lookup
-    try:
-        with engine.connect() as connection:
-            user = connection.execute(
-                text("""
-                    SELECT id, username, password_hash, role, is_active
-                    FROM users
-                    WHERE username = :username
-                """),
-                {"username": username}
-            ).mappings().first()
-    except Exception:
-        user = None
+    if is_database_online():
+        try:
+            with engine.connect() as connection:
+                user = connection.execute(
+                    text("""
+                        SELECT id, username, password_hash, role, is_active
+                        FROM users
+                        WHERE username = :username
+                    """),
+                    {"username": username}
+                ).mappings().first()
+        except Exception:
+            user = None
 
     # 2. Verify via Database if user exists in DB
     if user:

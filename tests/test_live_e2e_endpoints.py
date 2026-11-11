@@ -30,10 +30,16 @@ from backend.api.main import app
 client = TestClient(app)
 
 
+_ADMIN_TOKEN_CACHE = None
+
+
 def get_admin_token() -> str:
-    res = client.post("/auth/login", json={"username": "admin", "password": "admin123"})
-    assert res.status_code == 200
-    return res.json()["access_token"]
+    global _ADMIN_TOKEN_CACHE
+    if _ADMIN_TOKEN_CACHE is None:
+        res = client.post("/auth/login", json={"username": "admin", "password": "admin123"})
+        assert res.status_code == 200
+        _ADMIN_TOKEN_CACHE = res.json()["access_token"]
+    return _ADMIN_TOKEN_CACHE
 
 
 def test_e2e_01_root_html_dashboard():
@@ -200,3 +206,39 @@ def test_e2e_20_multihost_servers_and_predictive_forecast():
     assert res_forecast.status_code == 200
     data = res_forecast.json()
     assert "cpu" in data and "memory" in data
+
+
+def test_e2e_21_dashboard_security_and_notification_endpoints():
+    token = get_admin_token()
+    headers = {"Authorization": f"Bearer {token}"}
+    dashboard_gets = [
+        "/api/anomalies",
+        "/api/ml/anomalies?hostname=localhost",
+        "/api/predictive/failure?hostname=localhost",
+        "/api/ssh/events?limit=20",
+        "/api/security/alerts",
+        "/api/security/notification-history?limit=50",
+        "/api/security/reminders?limit=50",
+        "/api/security/campaigns",
+        "/api/security/incidents",
+        "/api/security/responses",
+        "/api/security/decisions",
+        "/api/security/response-audit?limit=20",
+        "/api/security/notification-settings",
+        "/api/security/notification-settings/audit?limit=100",
+        "/api/security/delivery-health",
+        "/api/security/notification-analytics?days=30&period=daily",
+        "/api/security/notification-simulator/history?limit=50",
+    ]
+    for path in dashboard_gets:
+        res = client.get(path, headers=headers)
+        assert res.status_code == 200, f"{path} failed with {res.status_code}: {res.text}"
+
+    sim_res = client.post(
+        "/api/security/notification-simulator",
+        json={"severity": "HIGH"},
+        headers=headers,
+    )
+    assert sim_res.status_code == 200, f"Simulator failed: {sim_res.status_code}: {sim_res.text}"
+    assert sim_res.json()["simulation_mode"] == "DRY-RUN"
+

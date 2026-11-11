@@ -50,7 +50,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi import Depends
 from sqlalchemy import text
 
-from backend.database import engine
+from backend.database import engine, is_database_online
 
 from backend.analytics.notification_analytics import (
     get_notification_analytics
@@ -193,6 +193,37 @@ def capture_live_system_telemetry() -> dict:
     }
     LIVE_METRICS_HISTORY.append(metric)
     return metric
+
+
+def _load_host_metrics_dataframe(hostname: str, query: str) -> pd.DataFrame:
+    """Load host metrics from PostgreSQL when online, else fall back to live telemetry."""
+    if is_database_online():
+        try:
+            with engine.connect() as connection:
+                return pd.read_sql(
+                    text(query),
+                    connection,
+                    params={"hostname": hostname},
+                )
+        except Exception:
+            pass
+
+    if not LIVE_METRICS_HISTORY:
+        capture_live_system_telemetry()
+
+    rows = [
+        {
+            "hostname": m["hostname"],
+            "cpu_usage": m["cpu_usage"],
+            "memory_usage": m["memory_usage"],
+            "disk_usage": m["disk_usage"],
+            "collected_at": m["collected_at"],
+        }
+        for m in LIVE_METRICS_HISTORY
+        if not hostname or m["hostname"] == hostname
+    ]
+    return pd.DataFrame(rows)
+
 
 class SecurityResponseExecutionRequest(BaseModel):
 
@@ -423,19 +454,20 @@ def get_metrics(
         get_current_user
     )
 ):
-    try:
-        with engine.connect() as connection:
-            result = connection.execute(text("""
-                SELECT *
-                FROM system_metrics
-                ORDER BY collected_at DESC
-                LIMIT 50;
-            """))
-            rows = result.mappings().all()
-            if rows:
-                return [dict(r) for r in rows]
-    except Exception:
-        pass
+    if is_database_online():
+        try:
+            with engine.connect() as connection:
+                result = connection.execute(text("""
+                    SELECT *
+                    FROM system_metrics
+                    ORDER BY collected_at DESC
+                    LIMIT 50;
+                """))
+                rows = result.mappings().all()
+                if rows:
+                    return [dict(r) for r in rows]
+        except Exception:
+            pass
 
     # Genuine live local hardware metrics
     if not LIVE_METRICS_HISTORY:
@@ -454,27 +486,28 @@ def get_metrics_history(
         get_current_user
     )
 ):
-    try:
-        with engine.connect() as connection:
-            result = connection.execute(text("""
-                SELECT
-                    hostname,
-                    cpu_usage,
-                    memory_usage,
-                    disk_usage,
-                    collected_at
-                FROM system_metrics
-                ORDER BY collected_at DESC
-                LIMIT :limit;
-            """), {
-                "limit": limit
-            })
-            rows = [dict(r) for r in result.mappings().all()]
-            if rows:
-                rows.reverse()
-                return rows
-    except Exception:
-        pass
+    if is_database_online():
+        try:
+            with engine.connect() as connection:
+                result = connection.execute(text("""
+                    SELECT
+                        hostname,
+                        cpu_usage,
+                        memory_usage,
+                        disk_usage,
+                        collected_at
+                    FROM system_metrics
+                    ORDER BY collected_at DESC
+                    LIMIT :limit;
+                """), {
+                    "limit": limit
+                })
+                rows = [dict(r) for r in result.mappings().all()]
+                if rows:
+                    rows.reverse()
+                    return rows
+        except Exception:
+            pass
 
     # Genuine live metrics ring buffer for real-time charting
     if len(LIVE_METRICS_HISTORY) < 3:
@@ -525,15 +558,7 @@ def get_ml_anomalies(
         ORDER BY collected_at ASC
     """
 
-    with engine.connect() as connection:
-
-        data = pd.read_sql(
-            text(query),
-            connection,
-            params={
-                "hostname": hostname
-            }
-        )
+    data = _load_host_metrics_dataframe(hostname, query)
 
 
     if len(data) < 20:
@@ -601,15 +626,7 @@ def get_predictive_failure(
         ORDER BY collected_at ASC
     """
 
-    with engine.connect() as connection:
-
-        data = pd.read_sql(
-            text(query),
-            connection,
-            params={
-                "hostname": hostname
-            }
-        )
+    data = _load_host_metrics_dataframe(hostname, query)
 
 
     if data.empty:
@@ -660,18 +677,19 @@ def get_hosts(
         get_current_user
     )
 ):
-    try:
-        with engine.connect() as connection:
-            result = connection.execute(text("""
-                SELECT DISTINCT hostname, ip_address
-                FROM system_metrics
-                ORDER BY hostname;
-            """))
-            rows = [dict(r) for r in result.mappings().all()]
-            if rows:
-                return rows
-    except Exception:
-        pass
+    if is_database_online():
+        try:
+            with engine.connect() as connection:
+                result = connection.execute(text("""
+                    SELECT DISTINCT hostname, ip_address
+                    FROM system_metrics
+                    ORDER BY hostname;
+                """))
+                rows = [dict(r) for r in result.mappings().all()]
+                if rows:
+                    return rows
+        except Exception:
+            pass
 
     live = capture_live_system_telemetry()
     return [{
@@ -686,55 +704,56 @@ def get_hosts(
 
 @app.get("/health")
 def get_health():
-    try:
-        with engine.connect() as connection:
-            result = connection.execute(text("""
-                SELECT
-                    hostname,
-                    ip_address,
-                    operating_system,
-                    kernel_version,
-                    cpu_usage,
-                    memory_usage,
-                    disk_usage,
-                    uptime,
-                    collected_at
-                FROM system_metrics
-                ORDER BY collected_at DESC
-                LIMIT 1;
-            """))
-            row = result.mappings().first()
+    if is_database_online():
+        try:
+            with engine.connect() as connection:
+                result = connection.execute(text("""
+                    SELECT
+                        hostname,
+                        ip_address,
+                        operating_system,
+                        kernel_version,
+                        cpu_usage,
+                        memory_usage,
+                        disk_usage,
+                        uptime,
+                        collected_at
+                    FROM system_metrics
+                    ORDER BY collected_at DESC
+                    LIMIT 1;
+                """))
+                row = result.mappings().first()
 
-            if row:
-                if (
-                    row["cpu_usage"] > 90
-                    or row["memory_usage"] > 90
-                    or row["disk_usage"] > 90
-                ):
-                    status = "Critical"
-                elif (
-                    row["cpu_usage"] > 70
-                    or row["memory_usage"] > 70
-                    or row["disk_usage"] > 70
-                ):
-                    status = "Warning"
-                else:
-                    status = "Healthy"
+                if row:
+                    if (
+                        row["cpu_usage"] > 90
+                        or row["memory_usage"] > 90
+                        or row["disk_usage"] > 90
+                    ):
+                        status = "Critical"
+                    elif (
+                        row["cpu_usage"] > 70
+                        or row["memory_usage"] > 70
+                        or row["disk_usage"] > 70
+                    ):
+                        status = "Warning"
+                    else:
+                        status = "Healthy"
 
-                return {
-                    "hostname": row["hostname"],
-                    "ip_address": row["ip_address"],
-                    "operating_system": row["operating_system"],
-                    "kernel_version": row["kernel_version"],
-                    "cpu_usage": row["cpu_usage"],
-                    "memory_usage": row["memory_usage"],
-                    "disk_usage": row["disk_usage"],
-                    "uptime": row["uptime"],
-                    "status": status,
-                    "collected_at": row["collected_at"]
-                }
-    except Exception:
-        pass
+                    return {
+                        "hostname": row["hostname"],
+                        "ip_address": row["ip_address"],
+                        "operating_system": row["operating_system"],
+                        "kernel_version": row["kernel_version"],
+                        "cpu_usage": row["cpu_usage"],
+                        "memory_usage": row["memory_usage"],
+                        "disk_usage": row["disk_usage"],
+                        "uptime": row["uptime"],
+                        "status": status,
+                        "collected_at": row["collected_at"]
+                    }
+        except Exception:
+            pass
 
     # Genuine live local hardware telemetry
     return capture_live_system_telemetry()
@@ -757,14 +776,11 @@ def infrastructure_health(
     score += 25
 
     # DATABASE
-    try:
-        with engine.connect() as connection:
-            connection.execute(text("SELECT 1"))
+    if is_database_online():
         components["database"] = "Healthy"
-        score += 25
-    except Exception:
+    else:
         components["database"] = "Healthy (In-Memory Fallback)"
-        score += 25
+    score += 25
 
     # EMBEDDED TELEMETRY COLLECTOR
     components["collector"] = "Healthy"
@@ -1276,7 +1292,15 @@ def security_responses(
     )
 ):
 
-    with engine.connect() as connection:
+    if not is_database_online():
+        return []
+
+    try:
+        connection = engine.connect()
+    except Exception:
+        return []
+
+    with connection:
 
         result = connection.execute(text("""
             SELECT
@@ -1323,7 +1347,15 @@ def security_response_audit(
         )
     )
 ):
-    with engine.connect() as connection:
+    if not is_database_online():
+        return []
+
+    try:
+        connection = engine.connect()
+    except Exception:
+        return []
+
+    with connection:
 
         result = connection.execute(text("""
             SELECT
@@ -1483,7 +1515,15 @@ def get_notification_history(
     )
 ):
 
-    with engine.connect() as connection:
+    if not is_database_online():
+        return []
+
+    try:
+        connection = engine.connect()
+    except Exception:
+        return []
+
+    with connection:
 
         result = connection.execute(
             text("""
@@ -1719,7 +1759,15 @@ def get_security_reminders(
             detail="User identity missing"
         )
 
-    with engine.connect() as connection:
+    if not is_database_online():
+        return []
+
+    try:
+        connection = engine.connect()
+    except Exception:
+        return []
+
+    with connection:
 
         if role == "admin":
 
@@ -1814,7 +1862,21 @@ def mark_reminder_as_read(
             detail="User identity missing"
         )
 
-    with engine.begin() as connection:
+    if not is_database_online():
+        raise HTTPException(
+            status_code=404,
+            detail="Reminder not found"
+        )
+
+    try:
+        connection = engine.connect()
+    except Exception:
+        raise HTTPException(
+            status_code=404,
+            detail="Reminder not found"
+        )
+
+    with connection, connection.begin():
 
         if role == "admin":
 

@@ -5,7 +5,7 @@
 
 from sqlalchemy import text
 
-from backend.database import engine
+from backend.database import engine, is_database_online
 
 
 # ------------------------------------------------------------
@@ -56,6 +56,8 @@ def get_notification_policy(severity):
     }
 
     try:
+        if not is_database_online():
+            raise RuntimeError("Database offline")
 
         with engine.connect() as connection:
 

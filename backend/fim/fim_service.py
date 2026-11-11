@@ -206,16 +206,17 @@ class FimService:
 
     def get_baseline(self, hostname: str) -> List[Dict[str, Any]]:
         """Retrieve baseline records for a host."""
-        try:
-            with engine.connect() as conn:
-                rows = conn.execute(
-                    text("SELECT * FROM fim_baselines WHERE hostname = :host ORDER BY file_path ASC"),
-                    {"host": hostname}
-                ).mappings().all()
-                if rows:
-                    return [dict(r) for r in rows]
-        except Exception:
-            pass
+        if is_database_online():
+            try:
+                with engine.connect() as conn:
+                    rows = conn.execute(
+                        text("SELECT * FROM fim_baselines WHERE hostname = :host ORDER BY file_path ASC"),
+                        {"host": hostname}
+                    ).mappings().all()
+                    if rows:
+                        return [dict(r) for r in rows]
+            except Exception:
+                pass
         if hostname not in self._memory_baselines:
             self._init_seed_baseline(hostname)
         return self._memory_baselines[hostname]
@@ -240,30 +241,31 @@ class FimService:
         for ev in events:
             ev["detected_at"] = datetime.now(timezone.utc).isoformat()
             self._memory_events.append(ev)
-            try:
-                with engine.begin() as conn:
-                    conn.execute(text("""
-                        INSERT INTO fim_events
-                        (hostname, file_path, change_type, severity, old_sha256, new_sha256,
-                         old_permissions, new_permissions, old_owner, new_owner, details, acknowledged)
-                        VALUES
-                        (:host, :path, :ctype, :sev, :old_hash, :new_hash,
-                         :old_perm, :new_perm, :old_owner, :new_owner, :details, FALSE)
-                    """), {
-                        "host": hostname,
-                        "path": ev["file_path"],
-                        "ctype": ev["change_type"],
-                        "sev": ev["severity"],
-                        "old_hash": ev.get("old_sha256"),
-                        "new_hash": ev.get("new_sha256"),
-                        "old_perm": ev.get("old_permissions"),
-                        "new_perm": ev.get("new_permissions"),
-                        "old_owner": ev.get("old_owner"),
-                        "new_owner": ev.get("new_owner"),
-                        "details": ev.get("details")
-                    })
-            except Exception:
-                pass
+            if is_database_online():
+                try:
+                    with engine.begin() as conn:
+                        conn.execute(text("""
+                            INSERT INTO fim_events
+                            (hostname, file_path, change_type, severity, old_sha256, new_sha256,
+                             old_permissions, new_permissions, old_owner, new_owner, details, acknowledged)
+                            VALUES
+                            (:host, :path, :ctype, :sev, :old_hash, :new_hash,
+                             :old_perm, :new_perm, :old_owner, :new_owner, :details, FALSE)
+                        """), {
+                            "host": hostname,
+                            "path": ev["file_path"],
+                            "ctype": ev["change_type"],
+                            "sev": ev["severity"],
+                            "old_hash": ev.get("old_sha256"),
+                            "new_hash": ev.get("new_sha256"),
+                            "old_perm": ev.get("old_permissions"),
+                            "new_perm": ev.get("new_permissions"),
+                            "old_owner": ev.get("old_owner"),
+                            "new_owner": ev.get("new_owner"),
+                            "details": ev.get("details")
+                        })
+                except Exception:
+                    pass
 
         return {
             "hostname": hostname,
@@ -280,28 +282,29 @@ class FimService:
         limit: int = 50
     ) -> List[Dict[str, Any]]:
         """List detected integrity violation events."""
-        try:
-            where = ["1=1"]
-            params: Dict[str, Any] = {"limit": limit}
-            if hostname:
-                where.append("hostname = :host")
-                params["host"] = hostname
-            if severity:
-                where.append("severity = :sev")
-                params["sev"] = severity.upper()
+        if is_database_online():
+            try:
+                where = ["1=1"]
+                params: Dict[str, Any] = {"limit": limit}
+                if hostname:
+                    where.append("hostname = :host")
+                    params["host"] = hostname
+                if severity:
+                    where.append("severity = :sev")
+                    params["sev"] = severity.upper()
 
-            sql = f"""
-            SELECT * FROM fim_events
-            WHERE {' AND '.join(where)}
-            ORDER BY detected_at DESC
-            LIMIT :limit
-            """
-            with engine.connect() as conn:
-                rows = conn.execute(text(sql), params).mappings().all()
-                if rows:
-                    return [dict(r) for r in rows]
-        except Exception:
-            pass
+                sql = f"""
+                SELECT * FROM fim_events
+                WHERE {' AND '.join(where)}
+                ORDER BY detected_at DESC
+                LIMIT :limit
+                """
+                with engine.connect() as conn:
+                    rows = conn.execute(text(sql), params).mappings().all()
+                    if rows:
+                        return [dict(r) for r in rows]
+            except Exception:
+                pass
 
         # Memory events fallback
         res = list(self._memory_events)

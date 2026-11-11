@@ -1,6 +1,6 @@
 from sqlalchemy import text
 
-from backend.database import engine
+from backend.database import engine, is_database_online
 from backend.ai.anomaly_detector import detect_anomaly
 
 
@@ -18,20 +18,26 @@ def get_metric_values(column, limit=50):
     if column not in allowed_columns:
         raise ValueError("Invalid metric column")
 
-    with engine.connect() as connection:
+    if not is_database_online():
+        return []
 
-        result = connection.execute(
-            text(f"""
-                SELECT {column}
-                FROM system_metrics
-                WHERE {column} IS NOT NULL
-                ORDER BY collected_at DESC
-                LIMIT :limit
-            """),
-            {"limit": limit}
-        )
+    try:
+        with engine.connect() as connection:
 
-        rows = result.fetchall()
+            result = connection.execute(
+                text(f"""
+                    SELECT {column}
+                    FROM system_metrics
+                    WHERE {column} IS NOT NULL
+                    ORDER BY collected_at DESC
+                    LIMIT :limit
+                """),
+                {"limit": limit}
+            )
+
+            rows = result.fetchall()
+    except Exception:
+        return []
 
     return [float(row[0]) for row in rows]
 

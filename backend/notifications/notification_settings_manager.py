@@ -4,7 +4,7 @@
 
 from sqlalchemy import text
 
-from backend.database import engine
+from backend.database import engine, is_database_online
 
 
 # ------------------------------------------------------------
@@ -71,9 +71,36 @@ def normalize_channel(channel):
 # GET ALL NOTIFICATION SETTINGS
 # ------------------------------------------------------------
 
+def _default_notification_setting(severity):
+    return {
+        "severity": severity,
+        "email_enabled": False,
+        "telegram_enabled": False,
+        "dashboard_enabled": True,
+        "updated_by_user_id": None,
+        "created_at": None,
+        "updated_at": None,
+        "priority": SEVERITY_PRIORITIES[severity],
+    }
+
+
 def get_notification_settings():
 
-    with engine.connect() as connection:
+    if not is_database_online():
+        return [
+            _default_notification_setting(severity)
+            for severity in ("CRITICAL", "HIGH", "MEDIUM", "LOW")
+        ]
+
+    try:
+        connection = engine.connect()
+    except Exception:
+        return [
+            _default_notification_setting(severity)
+            for severity in ("CRITICAL", "HIGH", "MEDIUM", "LOW")
+        ]
+
+    with connection:
 
         result = connection.execute(
             text("""
@@ -123,7 +150,15 @@ def get_notification_setting(severity):
         severity
     )
 
-    with engine.connect() as connection:
+    if not is_database_online():
+        return _default_notification_setting(normalized)
+
+    try:
+        connection = engine.connect()
+    except Exception:
+        return _default_notification_setting(normalized)
+
+    with connection:
 
         result = connection.execute(
             text("""
@@ -337,7 +372,15 @@ def get_notification_settings_audit(limit=100):
             "limit must be between 1 and 500"
         )
 
-    with engine.connect() as connection:
+    if not is_database_online():
+        return []
+
+    try:
+        connection = engine.connect()
+    except Exception:
+        return []
+
+    with connection:
 
         result = connection.execute(
             text("""

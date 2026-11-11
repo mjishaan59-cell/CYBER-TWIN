@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 from sqlalchemy.orm import Session
 from sqlalchemy import text
 
-from backend.database import SessionLocal
+from backend.database import SessionLocal, is_database_online
 
 from backend.models.security_incident_status import (
     SecurityIncidentStatus
@@ -163,6 +163,9 @@ def _history_dict(incident):
 
 def get_incident_status(incident_id):
 
+    if not is_database_online():
+        return None
+
     db: Session = SessionLocal()
 
     try:
@@ -174,11 +177,17 @@ def get_incident_status(incident_id):
 
         return _history_dict(incident)
 
+    except Exception:
+        return None
+
     finally:
         db.close()
 
 
 def get_incident_history(incident_id):
+
+    if not is_database_online():
+        return []
 
     db: Session = SessionLocal()
 
@@ -201,11 +210,17 @@ def get_incident_history(incident_id):
             for incident in incidents
         ]
 
+    except Exception:
+        return []
+
     finally:
         db.close()
 
 
 def get_incident_workflow(incident_id):
+
+    if not is_database_online():
+        return None
 
     db: Session = SessionLocal()
 
@@ -231,6 +246,9 @@ def get_incident_workflow(incident_id):
             "updated_by_user_id": workflow.updated_by_user_id,
             "updated_at": workflow.updated_at
         }
+
+    except Exception:
+        return None
 
     finally:
         db.close()

@@ -96,46 +96,47 @@ class SimulationService:
         self._history[sim_id] = result
 
         # Database persistence (non-blocking)
-        try:
-            with engine.begin() as conn:
-                conn.execute(text("""
-                    INSERT INTO attack_simulation_runs
-                    (simulation_id, scenario_id, scenario_name, target_hostname, mitre_technique, tactics, simulated_by, status, risk_score, impact_level, predicted_containment_probability, estimated_mttd_seconds, estimated_mttr_seconds, defensive_recommendations, impact_summary)
-                    VALUES (:sim_id, :scen_id, :name, :host, :mitre, :tact, :by, 'COMPLETED', :risk, :imp, :prob, :mttd, :mttr, :recs, :sum)
-                """), {
-                    "sim_id": sim_id,
-                    "scen_id": result["scenario_id"],
-                    "name": result["scenario_name"],
-                    "host": result["target_hostname"],
-                    "mitre": result["mitre_technique"],
-                    "tact": result["tactics"],
-                    "by": result["simulated_by"],
-                    "risk": result["risk_score"],
-                    "imp": result["impact_level"],
-                    "prob": result["predicted_containment_probability"],
-                    "mttd": result["estimated_mttd_seconds"],
-                    "mttr": result["estimated_mttr_seconds"],
-                    "recs": json.dumps(result["defensive_recommendations"]),
-                    "sum": result["impact_summary"]
-                })
-
-                for st in result.get("steps", []):
+        if is_database_online():
+            try:
+                with engine.begin() as conn:
                     conn.execute(text("""
-                        INSERT INTO simulation_step_logs
-                        (simulation_id, step_number, step_name, mitre_subtechnique, action_type, observed_telemetry, detection_status, details)
-                        VALUES (:sim_id, :num, :name, :sub, :action, :obs, :status, :det)
+                        INSERT INTO attack_simulation_runs
+                        (simulation_id, scenario_id, scenario_name, target_hostname, mitre_technique, tactics, simulated_by, status, risk_score, impact_level, predicted_containment_probability, estimated_mttd_seconds, estimated_mttr_seconds, defensive_recommendations, impact_summary)
+                        VALUES (:sim_id, :scen_id, :name, :host, :mitre, :tact, :by, 'COMPLETED', :risk, :imp, :prob, :mttd, :mttr, :recs, :sum)
                     """), {
                         "sim_id": sim_id,
-                        "num": st["step_number"],
-                        "name": st["step_name"],
-                        "sub": st["mitre_subtechnique"],
-                        "action": st["action_type"],
-                        "obs": st["observed_telemetry"],
-                        "status": st["detection_status"],
-                        "det": st["details"]
+                        "scen_id": result["scenario_id"],
+                        "name": result["scenario_name"],
+                        "host": result["target_hostname"],
+                        "mitre": result["mitre_technique"],
+                        "tact": result["tactics"],
+                        "by": result["simulated_by"],
+                        "risk": result["risk_score"],
+                        "imp": result["impact_level"],
+                        "prob": result["predicted_containment_probability"],
+                        "mttd": result["estimated_mttd_seconds"],
+                        "mttr": result["estimated_mttr_seconds"],
+                        "recs": json.dumps(result["defensive_recommendations"]),
+                        "sum": result["impact_summary"]
                     })
-        except Exception:
-            pass
+
+                    for st in result.get("steps", []):
+                        conn.execute(text("""
+                            INSERT INTO simulation_step_logs
+                            (simulation_id, step_number, step_name, mitre_subtechnique, action_type, observed_telemetry, detection_status, details)
+                            VALUES (:sim_id, :num, :name, :sub, :action, :obs, :status, :det)
+                        """), {
+                            "sim_id": sim_id,
+                            "num": st["step_number"],
+                            "name": st["step_name"],
+                            "sub": st["mitre_subtechnique"],
+                            "action": st["action_type"],
+                            "obs": st["observed_telemetry"],
+                            "status": st["detection_status"],
+                            "det": st["details"]
+                        })
+            except Exception:
+                pass
 
         return result
 

@@ -4,7 +4,7 @@
 
 from sqlalchemy import text
 
-from backend.database import engine
+from backend.database import engine, is_database_online
 
 
 # ============================================================
@@ -19,9 +19,49 @@ REPEATED_FAILURE_ATTEMPTS = 3
 # DELIVERY HEALTH MONITOR
 # ============================================================
 
+def _empty_delivery_health():
+    return {
+        "overall_health": "INSUFFICIENT_DATA",
+        "summary": {
+            "total_records": 0,
+            "total_attempts": 0,
+            "sent": 0,
+            "failed": 0,
+            "pending": 0,
+            "overdue": 0,
+            "repeated_failures": 0,
+            "success_rate": None,
+            "failure_rate": None,
+        },
+        "channels": {
+            name: {
+                "health": "INSUFFICIENT_DATA",
+                "total": 0,
+                "sent": 0,
+                "failed": 0,
+                "pending": 0,
+                "total_attempts": 0,
+                "overdue": 0,
+                "repeated_failures": 0,
+                "success_rate": None,
+            }
+            for name in ("email", "telegram")
+        },
+        "event_history": {},
+    }
+
+
 def get_delivery_health():
 
-    with engine.connect() as connection:
+    if not is_database_online():
+        return _empty_delivery_health()
+
+    try:
+        connection = engine.connect()
+    except Exception:
+        return _empty_delivery_health()
+
+    with connection:
 
         # ----------------------------------------------------
         # INCIDENT DELIVERY SUMMARY

@@ -12,7 +12,9 @@ from dotenv import load_dotenv
 from jose import JWTError, jwt
 from sqlalchemy import text
 
-from backend.database import engine
+from backend.database import engine, is_database_online
+
+_offline_revoked_jtis = set()
 
 
 load_dotenv(override=False)
@@ -87,24 +89,28 @@ def verify_access_token(token):
         if not username or not token_id:
             return None
 
-        try:
-            with engine.connect() as connection:
-                revoked = connection.execute(
-                    text("""
-                        SELECT 1
-                        FROM revoked_tokens
-                        WHERE jti = :jti
-                        LIMIT 1
-                    """),
-                    {"jti": token_id}
-                ).first()
+        if token_id in _offline_revoked_jtis:
+            return None
 
-            if revoked:
-                return None
-        except Exception:
-            # Fallback if revoked_tokens table or database connection is offline;
-            # cryptographic signature and claims (exp, iss, aud, jti) remain verified above
-            pass
+        if is_database_online():
+            try:
+                with engine.connect() as connection:
+                    revoked = connection.execute(
+                        text("""
+                            SELECT 1
+                            FROM revoked_tokens
+                            WHERE jti = :jti
+                            LIMIT 1
+                        """),
+                        {"jti": token_id}
+                    ).first()
+
+                if revoked:
+                    return None
+            except Exception:
+                # Fallback if revoked_tokens table or database connection is offline;
+                # cryptographic signature and claims (exp, iss, aud, jti) remain verified above
+                pass
 
         return payload
 
@@ -115,27 +121,34 @@ def verify_access_token(token):
 def revoke_access_token(payload):
 
     token_id = payload["jti"]
+    _offline_revoked_jtis.add(token_id)
+
+    if not is_database_online():
+        return
 
     expires_at = datetime.fromtimestamp(
         payload["exp"],
         timezone.utc
     )
 
-    with engine.begin() as connection:
+    try:
+        with engine.begin() as connection:
 
-        connection.execute(
-            text("""
-                INSERT INTO revoked_tokens (
-                    jti,
-                    expires_at
-                )
-                VALUES (
-                    :jti,
-                    :expires_at
-                )
-            """),
-            {
-                "jti": token_id,
-                "expires_at": expires_at
-            }
-        )
+            connection.execute(
+                text("""
+                    INSERT INTO revoked_tokens (
+                        jti,
+                        expires_at
+                    )
+                    VALUES (
+                        :jti,
+                        :expires_at
+                    )
+                """),
+                {
+                    "jti": token_id,
+                    "expires_at": expires_at
+                }
+            )
+    except Exception:
+        pass
